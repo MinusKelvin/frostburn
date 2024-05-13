@@ -1,0 +1,12 @@
+[workspace]
+members = ["frostburn-uci"]
+
+[package]
+name = "frostburn"
+authors = ["MinusKelvin <mark.carlson@minuskelvin.net>"]
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+arrayvec = "0.7.4"
+cozy-chess = "0.3.4"
