@@ -12,7 +12,7 @@ impl Search<'_> {
         self.data.on_first_depth = true;
 
         for new_depth in 1.. {
-            let result = self.negamax(self.root, new_depth, 0);
+            let result = self.negamax(self.root, -30_000, 30_000, new_depth, 0);
             self.data.on_first_depth = false;
             if let Some(new_score) = result {
                 score = new_score;
