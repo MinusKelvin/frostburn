@@ -1,17 +1,18 @@
 use alloc::vec;
 use cozy_chess::Board;
 
+use crate::nnue::Accumulator;
 use crate::{Search, MAX_PLY};
 
 impl Search<'_> {
     pub(crate) fn negamax(&mut self, pos: &Board, depth: i16, ply: usize) -> Option<i16> {
+        self.count_node_and_check_abort(false)?;
+        
         self.data.pv_table[ply].clear();
 
         if depth <= 0 || ply >= MAX_PLY {
-            return Some((pos.hash() % 8192) as i16 - 4096);
+            return Some(Accumulator::new(pos).infer(pos.side_to_move()));
         }
-
-        self.count_node_and_check_abort(false)?;
 
         let mut best_mv = None;
         let mut best_score = -30_000;

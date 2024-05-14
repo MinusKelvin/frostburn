@@ -1,0 +1,11 @@
+[package]
+name = "datagen"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+frostburn = { path = ".." }
+datafmt = { path = "../datafmt" }
+cozy-chess = "0.3.4"
+structopt = "0.3.26"
+rand = "0.8.5"

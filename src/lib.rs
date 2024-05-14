@@ -10,6 +10,7 @@ use cozy_chess::{Board, Move};
 
 mod negamax;
 mod search;
+mod nnue;
 
 const MAX_PLY: usize = 256;
 const MAX_DEPTH: i16 = 120;
@@ -40,6 +41,7 @@ pub struct Limits {
     pub move_time: Option<Duration>,
     pub depth: Option<i16>,
     pub nodes: Option<u64>,
+    pub min_nodes: Option<u64>,
 }
 
 pub struct SearchInfo<'a> {

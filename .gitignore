@@ -1,1 +1,4 @@
 /target
+/.venv
+/data
+/nets
