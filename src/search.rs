@@ -2,7 +2,7 @@ use core::sync::atomic::Ordering;
 
 use arrayvec::ArrayVec;
 
-use crate::{Search, SearchInfo, MAX_DEPTH};
+use crate::{Accumulator, Search, SearchInfo, MAX_DEPTH};
 
 impl Search<'_> {
     pub fn search(&mut self) {

@@ -145,7 +145,7 @@ impl UciHandler {
     }
 
     fn eval(&mut self, _: &mut TokenIter) {
-        let static_eval = Accumulator::new(&self.position).infer(self.position.side_to_move());
+        let static_eval = Accumulator::new().infer(&self.position);
         println!("info string staticeval {static_eval}");
     }
 

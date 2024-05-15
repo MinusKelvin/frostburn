@@ -1,7 +1,8 @@
-use cozy_chess::{Board, Color, Piece, Square};
+use cozy_chess::{BitBoard, Board, Color, Piece, Square};
 
 #[derive(Clone)]
 pub struct Accumulator {
+    enabled: [[BitBoard; 6]; 2],
     white: [i16; 256],
     black: [i16; 256],
 }
@@ -19,28 +20,52 @@ struct Network {
 }
 
 impl Accumulator {
-    pub fn new(pos: &Board) -> Self {
-        let mut this = Accumulator {
+    pub fn new() -> Self {
+        Accumulator {
+            enabled: [[BitBoard::EMPTY; 6]; 2],
             white: NETWORK.ft.bias,
             black: NETWORK.ft.bias,
-        };
-        for sq in pos.occupied() {
-            let color = pos.color_on(sq).unwrap();
-            let piece = pos.piece_on(sq).unwrap();
-            let w_feat = feature(Color::White, color, piece, sq);
-            let b_feat = feature(Color::Black, color, piece, sq);
-            this.white = vadd(&this.white, &NETWORK.ft.w[w_feat]);
-            this.black = vadd(&this.black, &NETWORK.ft.w[b_feat]);
         }
-        this
     }
 
-    pub fn infer(&self, stm: Color) -> i16 {
+    fn add_feature(&mut self, color: Color, piece: Piece, sq: Square) {
+        let w_feat = feature(Color::White, color, piece, sq);
+        let b_feat = feature(Color::Black, color, piece, sq);
+        self.white = vadd(&self.white, &NETWORK.ft.w[w_feat]);
+        self.black = vadd(&self.black, &NETWORK.ft.w[b_feat]);
+    }
+
+    fn rm_feature(&mut self, color: Color, piece: Piece, sq: Square) {
+        let w_feat = feature(Color::White, color, piece, sq);
+        let b_feat = feature(Color::Black, color, piece, sq);
+        self.white = vsub(&self.white, &NETWORK.ft.w[w_feat]);
+        self.black = vsub(&self.black, &NETWORK.ft.w[b_feat]);
+    }
+
+    pub fn infer(&mut self, board: &Board) -> i16 {
+        for color in Color::ALL {
+            for piece in Piece::ALL {
+                let enabled = &mut self.enabled[color as usize][piece as usize];
+                let feats = board.colored_pieces(color, piece);
+                let removed = *enabled - feats;
+                let added = feats - *enabled;
+                *enabled = feats;
+
+                for sq in removed {
+                    self.rm_feature(color, piece, sq);
+                }
+                for sq in added {
+                    self.add_feature(color, piece, sq);
+                }
+            }
+        }
+
         let mut activated = [0; 512];
         let (left, right) = activated.split_at_mut(256);
         let left = <&mut [_; 256]>::try_from(left).unwrap();
         let right = <&mut [_; 256]>::try_from(right).unwrap();
-        match stm {
+
+        match board.side_to_move() {
             Color::White => {
                 *left = crelu(&self.white);
                 *right = crelu(&self.black);
@@ -65,6 +90,14 @@ fn vadd<const N: usize>(a: &[i16; N], b: &[i16; N]) -> [i16; N] {
     let mut result = [0; N];
     for i in 0..N {
         result[i] = a[i] + b[i];
+    }
+    result
+}
+
+fn vsub<const N: usize>(a: &[i16; N], b: &[i16; N]) -> [i16; N] {
+    let mut result = [0; N];
+    for i in 0..N {
+        result[i] = a[i] - b[i];
     }
     result
 }

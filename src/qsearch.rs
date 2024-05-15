@@ -1,7 +1,6 @@
 use alloc::vec;
 use cozy_chess::Board;
 
-use crate::nnue::Accumulator;
 use crate::{Search, MAX_PLY};
 
 impl Search<'_> {
@@ -14,7 +13,7 @@ impl Search<'_> {
     ) -> Option<i16> {
         self.count_node_and_check_abort(false)?;
 
-        let stand_pat = Accumulator::new(pos).infer(pos.side_to_move());
+        let stand_pat = self.data.accumulator.infer(pos);
 
         let mut best_mv = None;
         let mut best_score = stand_pat;

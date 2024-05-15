@@ -9,9 +9,9 @@ use arrayvec::ArrayVec;
 use cozy_chess::{Board, Move};
 
 mod negamax;
-mod search;
 mod nnue;
 mod qsearch;
+mod search;
 
 pub use crate::nnue::Accumulator;
 
@@ -22,6 +22,7 @@ pub struct LocalData {
     pv_table: [ArrayVec<Move, MAX_PLY>; MAX_PLY + 1],
     on_first_depth: bool,
     local_nodes: u64,
+    accumulator: Accumulator,
 }
 
 pub struct SharedData {
@@ -99,6 +100,7 @@ impl LocalData {
             pv_table: [(); MAX_PLY + 1].map(|_| ArrayVec::new()),
             on_first_depth: false,
             local_nodes: 0,
+            accumulator: Accumulator::new(),
         }
     }
 }
