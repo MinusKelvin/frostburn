@@ -85,6 +85,8 @@ start = time()
 train_id = strftime("%Y-%m-%d-%H-%M-%S")
 
 for i, (stm, nstm, targets) in enumerate(batch_stream()):
+    if i == 17_500:
+        opt.param_groups[0]["lr"] /= 10
     if i == ITERS:
         break
 
@@ -110,3 +112,5 @@ with open(f"nets/{train_id}.json", "w") as f:
         name: param.detach().cpu().tolist()
         for name, param in model.named_parameters()
     }, f)
+
+print(train_id)

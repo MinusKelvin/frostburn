@@ -12,6 +12,8 @@ mod negamax;
 mod search;
 mod nnue;
 
+pub use crate::nnue::Accumulator;
+
 const MAX_PLY: usize = 256;
 const MAX_DEPTH: i16 = 120;
 

@@ -129,7 +129,6 @@ fn data_stream(file: &Path) -> impl Iterator<Item = (Board, Option<Color>)> {
                     Some((pos, mv, game.winner))
                 })
                 .skip(game.fake_moves as usize)
-                .last()
         })
         .filter(|&(ref board, mv, winner)| filter(board, mv, winner))
         .map(|(board, _, winner)| (board, winner))

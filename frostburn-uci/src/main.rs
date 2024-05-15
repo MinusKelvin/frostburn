@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 use cozy_chess::util::{display_uci_move, parse_uci_move};
 use cozy_chess::{Board, Color};
-use frostburn::{Limits, LocalData, Search, SharedData};
+use frostburn::{Accumulator, Limits, LocalData, Search, SharedData};
 
 type TokenIter<'a> = std::str::SplitAsciiWhitespace<'a>;
 type CmdHandler = fn(&mut UciHandler, &mut TokenIter);
@@ -30,6 +30,7 @@ fn main() {
     cmds.insert("setoption", UciHandler::set_option);
     cmds.insert("ucinewgame", UciHandler::new_game);
     cmds.insert("stop", UciHandler::stop);
+    cmds.insert("eval", UciHandler::eval);
 
     let mut uci = UciHandler::new();
     let mut buf = String::new();
@@ -141,6 +142,11 @@ impl UciHandler {
         for thread in self.threads.drain(..) {
             thread.join().unwrap();
         }
+    }
+
+    fn eval(&mut self, _: &mut TokenIter) {
+        let static_eval = Accumulator::new(&self.position).infer(self.position.side_to_move());
+        println!("info string staticeval {static_eval}");
     }
 
     fn go(&mut self, tokens: &mut TokenIter) {
