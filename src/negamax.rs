@@ -30,6 +30,8 @@ impl Search<'_> {
             false
         });
 
+        moves.sort_unstable_by_key(|mv| core::cmp::Reverse(pos.piece_on(mv.to)));
+
         for mv in moves {
             let mut new_pos = pos.clone();
             new_pos.play_unchecked(mv);
