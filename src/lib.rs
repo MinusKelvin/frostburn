@@ -11,6 +11,7 @@ use cozy_chess::{Board, Move};
 mod negamax;
 mod search;
 mod nnue;
+mod qsearch;
 
 pub use crate::nnue::Accumulator;
 
