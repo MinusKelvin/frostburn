@@ -76,16 +76,18 @@ def batch_stream():
 model = Model().to(gpu)
 opt = torch.optim.Adam(model.parameters(), lr=0.01)
 
-recent_losses = torch.zeros(10).to(gpu)
+PRINT_ITERS = 100
+recent_losses = torch.zeros(PRINT_ITERS).to(gpu)
 
-ITERS = 20_000
+ITERS = 50_000
+lr_drops = [45_000]
 
 start = time()
 
 train_id = strftime("%Y-%m-%d-%H-%M-%S")
 
 for i, (stm, nstm, targets) in enumerate(batch_stream()):
-    if i == 17_500:
+    if i in lr_drops:
         opt.param_groups[0]["lr"] /= 10
     if i == ITERS:
         break
@@ -99,9 +101,9 @@ for i, (stm, nstm, targets) in enumerate(batch_stream()):
     with torch.no_grad():
         model.clip()
 
-    recent_losses[i % 10] = loss
+    recent_losses[i % PRINT_ITERS] = loss
 
-    if (i + 1) % 10 == 0:
+    if (i + 1) % PRINT_ITERS == 0:
         print(f"\r{i+1:>8}/{ITERS}    {i * batch_size / (time() - start):>5.0f} pos/s    loss: {torch.mean(recent_losses).item():.6f}   ", end="")
 
 print()
