@@ -12,8 +12,6 @@ impl Search<'_> {
         depth: i16,
         ply: usize,
     ) -> Option<i16> {
-        self.data.pv_table[ply].clear();
-
         if depth <= 0 || ply >= MAX_PLY {
             return self.qsearch(pos, alpha, beta, ply);
         }
@@ -31,11 +29,19 @@ impl Search<'_> {
 
         moves.sort_unstable_by_key(|mv| core::cmp::Reverse(pos.piece_on(mv.to)));
 
+        self.history.push(pos.hash());
+
         for mv in moves {
             let mut new_pos = pos.clone();
             new_pos.play_unchecked(mv);
+            self.data.pv_table[ply + 1].clear();
 
-            let score = -self.negamax(&new_pos, -beta, -alpha, depth - 1, ply + 1)?;
+            let score;
+            if ply != 0 && self.history.contains(&new_pos.hash()) {
+                score = 0;
+            } else {
+                score = -self.negamax(&new_pos, -beta, -alpha, depth - 1, ply + 1)?;
+            }
 
             if score > best_score {
                 best_mv = Some(mv);
@@ -55,6 +61,8 @@ impl Search<'_> {
                 break;
             }
         }
+
+        self.history.pop();
 
         if best_mv.is_none() {
             if pos.checkers().is_empty() {

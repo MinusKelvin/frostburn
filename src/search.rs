@@ -2,14 +2,23 @@ use core::sync::atomic::Ordering;
 
 use arrayvec::ArrayVec;
 
-use crate::{Accumulator, Search, SearchInfo, MAX_DEPTH};
+use crate::{Search, SearchInfo, MAX_DEPTH};
 
 impl Search<'_> {
-    pub fn search(&mut self) {
+    pub fn search(mut self) {
         let mut score = 0;
         let mut pv = ArrayVec::new();
         let mut depth = 0;
         self.data.on_first_depth = true;
+
+        // simplify history so we can detect 2-fold
+        let start =
+            self.history.len() - (self.root.halfmove_clock() as usize).min(self.history.len());
+        self.history[start..].sort_unstable();
+        self.history = self.history[start..]
+            .windows(2)
+            .filter_map(|s| (s[0] == s[1]).then_some(s[0]))
+            .collect();
 
         for new_depth in 1.. {
             let result = self.negamax(self.root, -30_000, 30_000, new_depth, 0);
