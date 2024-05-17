@@ -7,6 +7,7 @@ use core::time::Duration;
 use alloc::vec::Vec;
 use arrayvec::ArrayVec;
 use cozy_chess::{Board, Move};
+use history::PieceHistory;
 use tt::TranspositionTable;
 
 mod negamax;
@@ -14,6 +15,7 @@ mod nnue;
 mod qsearch;
 mod search;
 mod tt;
+mod history;
 
 pub use crate::nnue::Accumulator;
 
@@ -25,6 +27,7 @@ pub struct LocalData {
     on_first_depth: bool,
     local_nodes: u64,
     accumulator: Accumulator,
+    history: PieceHistory,
 }
 
 pub struct SharedData {
@@ -104,6 +107,7 @@ impl LocalData {
             on_first_depth: false,
             local_nodes: 0,
             accumulator: Accumulator::new(),
+            history: PieceHistory::new(),
         }
     }
 }

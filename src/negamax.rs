@@ -28,18 +28,24 @@ impl Search<'_> {
 
         let mut moves = vec![];
         pos.generate_moves(|mvs| {
-            moves.extend(mvs);
+            for mv in mvs {
+                let score = if tt_mv.is_some_and(|tt_mv| mv == tt_mv) {
+                    1_000_000
+                } else if pos.colors(!pos.side_to_move()).has(mv.to) {
+                    100_000 + pos.piece_on(mv.to).unwrap() as i32
+                } else {
+                    self.data.history.get(pos, mv) as i32
+                };
+                moves.push((mv, score));
+            }
             false
         });
 
-        moves.sort_unstable_by_key(|&mv| match tt_mv {
-            Some(tt_mv) if mv == tt_mv => core::cmp::Reverse(Some(Piece::King)),
-            _ => core::cmp::Reverse(pos.piece_on(mv.to)),
-        });
+        moves.sort_unstable_by_key(|&(_, score)| core::cmp::Reverse(score));
 
         self.history.push(pos.hash());
 
-        for mv in moves {
+        for (i, &(mv, _)) in moves.iter().enumerate() {
             let mut new_pos = pos.clone();
             new_pos.play_unchecked(mv);
             self.data.pv_table[ply + 1].clear();
@@ -66,6 +72,12 @@ impl Search<'_> {
             }
 
             if score > beta {
+                self.data.history.update(pos, mv, 64 * depth);
+                for &(failure, _) in &moves[..i] {
+                    if !pos.colors(!pos.side_to_move()).has(failure.to) {
+                        self.data.history.update(pos, failure, -64 * depth);
+                    }
+                }
                 break;
             }
         }
