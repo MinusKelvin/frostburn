@@ -1,6 +1,7 @@
 use alloc::vec;
-use cozy_chess::Board;
+use cozy_chess::{Board, Piece};
 
+use crate::tt::{Bound, TtEntry};
 use crate::{Search, MAX_PLY};
 
 impl Search<'_> {
@@ -18,8 +19,12 @@ impl Search<'_> {
 
         self.count_node_and_check_abort(false)?;
 
+        let tt = self.shared.tt.load(pos.hash());
+        let tt_mv = tt.map(|tt| tt.mv.into());
+
         let mut best_mv = None;
         let mut best_score = -30_000;
+        let orig_alpha = alpha;
 
         let mut moves = vec![];
         pos.generate_moves(|mvs| {
@@ -27,7 +32,10 @@ impl Search<'_> {
             false
         });
 
-        moves.sort_unstable_by_key(|mv| core::cmp::Reverse(pos.piece_on(mv.to)));
+        moves.sort_unstable_by_key(|&mv| match tt_mv {
+            Some(tt_mv) if mv == tt_mv => core::cmp::Reverse(Some(Piece::King)),
+            _ => core::cmp::Reverse(pos.piece_on(mv.to)),
+        });
 
         self.history.push(pos.hash());
 
@@ -64,13 +72,24 @@ impl Search<'_> {
 
         self.history.pop();
 
-        if best_mv.is_none() {
+        let Some(best_mv) = best_mv else {
             if pos.checkers().is_empty() {
                 return Some(0);
             } else {
                 return Some(ply as i16 - 30_000);
             }
-        }
+        };
+
+        self.shared.tt.store(
+            pos.hash(),
+            TtEntry {
+                lower_hash_bits: 0,
+                mv: best_mv.into(),
+                score: best_score,
+                depth: depth as u8,
+                bound: Bound::compute(orig_alpha, beta, best_score),
+            },
+        );
 
         Some(best_score)
     }

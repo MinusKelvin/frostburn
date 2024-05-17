@@ -134,11 +134,7 @@ impl UciHandler {
     }
 
     fn stop(&mut self, _: &mut TokenIter) {
-        self.shared_data
-            .read()
-            .unwrap()
-            .abort
-            .store(true, Ordering::SeqCst);
+        self.shared_data.read().unwrap().abort();
         for thread in self.threads.drain(..) {
             thread.join().unwrap();
         }

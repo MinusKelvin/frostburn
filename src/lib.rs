@@ -1,4 +1,4 @@
-#![no_std]
+// #![no_std]
 extern crate alloc;
 
 use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -7,11 +7,13 @@ use core::time::Duration;
 use alloc::vec::Vec;
 use arrayvec::ArrayVec;
 use cozy_chess::{Board, Move};
+use tt::TranspositionTable;
 
 mod negamax;
 mod nnue;
 mod qsearch;
 mod search;
+mod tt;
 
 pub use crate::nnue::Accumulator;
 
@@ -26,8 +28,9 @@ pub struct LocalData {
 }
 
 pub struct SharedData {
-    pub abort: AtomicBool,
-    pub nodes: AtomicU64,
+    abort: AtomicBool,
+    nodes: AtomicU64,
+    tt: TranspositionTable,
 }
 
 pub struct Search<'a> {
@@ -110,11 +113,16 @@ impl SharedData {
         SharedData {
             abort: AtomicBool::new(false),
             nodes: AtomicU64::new(0),
+            tt: TranspositionTable::new(64),
         }
     }
 
     pub fn prepare_for_search(&mut self) {
         *self.abort.get_mut() = false;
         *self.nodes.get_mut() = 0;
+    }
+
+    pub fn abort(&self) {
+        self.abort.store(true, Ordering::SeqCst);
     }
 }
