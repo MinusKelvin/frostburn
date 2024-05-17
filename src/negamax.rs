@@ -72,10 +72,12 @@ impl Search<'_> {
             }
 
             if score > beta {
-                self.data.history.update(pos, mv, 64 * depth);
-                for &(failure, _) in &moves[..i] {
-                    if !pos.colors(!pos.side_to_move()).has(failure.to) {
-                        self.data.history.update(pos, failure, -64 * depth);
+                if !pos.colors(!pos.side_to_move()).has(mv.to) {
+                    self.data.history.update(pos, mv, 64 * depth);
+                    for &(failure, _) in &moves[..i] {
+                        if !pos.colors(!pos.side_to_move()).has(failure.to) {
+                            self.data.history.update(pos, failure, -64 * depth);
+                        }
                     }
                 }
                 break;
