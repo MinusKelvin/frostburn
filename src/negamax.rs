@@ -23,7 +23,7 @@ impl Search<'_> {
         let tt_mv = tt.map(|tt| tt.mv.into());
 
         match tt {
-            _ if ply == 0 => {}
+            _ if PV => {}
             Some(tt) if depth > tt.depth as i16 => {}
             Some(tt) if tt.bound.exact() => return Some(tt.score),
             Some(tt) if tt.bound.lower() && tt.score >= beta => return Some(tt.score),
