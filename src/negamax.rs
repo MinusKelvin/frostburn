@@ -5,7 +5,7 @@ use crate::tt::{Bound, TtEntry};
 use crate::{Search, MAX_PLY};
 
 impl Search<'_> {
-    pub(crate) fn negamax(
+    pub(crate) fn negamax<const PV: bool>(
         &mut self,
         pos: &Board,
         mut alpha: i16,
@@ -59,11 +59,17 @@ impl Search<'_> {
             new_pos.play_unchecked(mv);
             self.data.pv_table[ply + 1].clear();
 
-            let score;
+            let mut score;
             if ply != 0 && self.history.contains(&new_pos.hash()) {
                 score = 0;
+            } else if PV && i == 0 {
+                score = -self.negamax::<true>(&new_pos, -beta, -alpha, depth - 1, ply + 1)?;
             } else {
-                score = -self.negamax(&new_pos, -beta, -alpha, depth - 1, ply + 1)?;
+                score = -self.negamax::<false>(&new_pos, -alpha-1, -alpha, depth - 1, ply + 1)?;
+
+                if PV && score > alpha {
+                    score = -self.negamax::<true>(&new_pos, -beta, -alpha, depth - 1, ply + 1)?;
+                }
             }
 
             if score > best_score {
