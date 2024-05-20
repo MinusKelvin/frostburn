@@ -1,5 +1,5 @@
 use alloc::vec;
-use cozy_chess::{Board, Piece};
+use cozy_chess::Board;
 
 use crate::tt::{Bound, TtEntry};
 use crate::{Search, MAX_PLY};
@@ -65,7 +65,7 @@ impl Search<'_> {
             } else if PV && i == 0 {
                 score = -self.negamax::<true>(&new_pos, -beta, -alpha, depth - 1, ply + 1)?;
             } else {
-                score = -self.negamax::<false>(&new_pos, -alpha-1, -alpha, depth - 1, ply + 1)?;
+                score = -self.negamax::<false>(&new_pos, -alpha - 1, -alpha, depth - 1, ply + 1)?;
 
                 if PV && score > alpha {
                     score = -self.negamax::<true>(&new_pos, -beta, -alpha, depth - 1, ply + 1)?;

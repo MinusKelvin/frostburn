@@ -113,11 +113,11 @@ impl LocalData {
 }
 
 impl SharedData {
-    pub fn new() -> Self {
+    pub fn new(tt_mb: usize) -> Self {
         SharedData {
             abort: AtomicBool::new(false),
             nodes: AtomicU64::new(0),
-            tt: TranspositionTable::new(64),
+            tt: TranspositionTable::new(tt_mb),
         }
     }
 

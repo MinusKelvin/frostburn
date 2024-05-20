@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::prelude::Write;
 use std::io::stdout;
 use std::num::ParseIntError;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -16,7 +16,7 @@ use structopt::StructOpt;
 #[derive(StructOpt, Debug)]
 struct Options {
     output: PathBuf,
-    #[structopt(long, short, default_value = "100k", parse(try_from_str = human_parse))]
+    #[structopt(long, short, default_value = "5M", parse(try_from_str = human_parse))]
     games: u64,
     #[structopt(long, short, default_value = "5k", parse(try_from_str = human_parse))]
     nodes: u64,
@@ -27,7 +27,7 @@ struct Options {
 fn main() {
     let options = Options::from_args();
 
-    if options.output.exists() {
+    if options.output.exists() && options.output != Path::new("/dev/null") {
         eprintln!("Refusing to overwrite existing file.");
         exit(1);
     }
@@ -38,8 +38,14 @@ fn main() {
 
     std::thread::scope(|s| {
         for _ in 0..concurrency {
-            s.spawn(|| loop {
-                let game = play_game(options.nodes, options.opp_nodes.unwrap_or(options.nodes));
+            let mut shared = [SharedData::new(4), SharedData::new(4)];
+            let writer = &writer;
+            s.spawn(move || loop {
+                let game = play_game(
+                    &mut shared,
+                    options.nodes,
+                    options.opp_nodes.unwrap_or(options.nodes),
+                );
 
                 let mut guard = writer.lock().unwrap();
 
@@ -88,7 +94,7 @@ fn main() {
     writer.into_inner().unwrap().finish().unwrap();
 }
 
-fn play_game(a_nodes: u64, b_nodes: u64) -> Game {
+fn play_game(shared: &mut [SharedData; 2], a_nodes: u64, b_nodes: u64) -> Game {
     let (mut game, mut board) = pick_startpos();
 
     let mut limits = [Limits::default(); 2];
@@ -96,7 +102,6 @@ fn play_game(a_nodes: u64, b_nodes: u64) -> Game {
     limits[1].min_nodes = Some(b_nodes);
 
     let mut local = [LocalData::new(), LocalData::new()];
-    let mut shared = [SharedData::new(), SharedData::new()];
 
     let mut history = vec![];
 

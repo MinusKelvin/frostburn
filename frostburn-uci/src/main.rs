@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::io::prelude::Write;
 use std::io::{stdin, stdout};
 use std::process::exit;
-use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -70,7 +69,7 @@ impl UciHandler {
             history: vec![],
             mv_format: MoveFormat::Standard,
             local_data: Arc::new(Mutex::new(LocalData::new())),
-            shared_data: Arc::new(RwLock::new(SharedData::new())),
+            shared_data: Arc::new(RwLock::new(SharedData::new(64))),
             threads: vec![],
         }
     }
@@ -79,6 +78,7 @@ impl UciHandler {
         println!("id name Frostburn {}", env!("CARGO_PKG_VERSION_MAJOR"));
         println!("id author {}", env!("CARGO_PKG_AUTHORS"));
         println!("option name UCI_Chess960 type check default false");
+        println!("option name Hash type spin min 1 max 1048576 default 64");
         println!("uciok");
     }
 
@@ -99,6 +99,10 @@ impl UciHandler {
                     "false" => MoveFormat::Standard,
                     _ => panic!("invalid value for UCI_Chess960"),
                 }
+            }
+            "Hash" => {
+                let mb = tokens.nth(1).unwrap().parse().unwrap();
+                *self.shared_data.write().unwrap() = SharedData::new(mb);
             }
             _ => {}
         }
@@ -228,7 +232,7 @@ impl UciHandler {
 }
 
 fn bench() {
-    let mut shared = SharedData::new();
+    let mut shared = SharedData::new(8);
     let mut local = LocalData::new();
 
     let mut search_time = Duration::ZERO;
@@ -247,7 +251,7 @@ fn bench() {
             data: &mut local,
             shared: &shared,
             limits: Limits {
-                depth: Some(4),
+                depth: Some(6),
                 ..Default::default()
             },
         }
