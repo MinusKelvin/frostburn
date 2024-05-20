@@ -22,6 +22,15 @@ impl Search<'_> {
         let tt = self.shared.tt.load(pos.hash());
         let tt_mv = tt.map(|tt| tt.mv.into());
 
+        match tt {
+            _ if ply == 0 => {}
+            Some(tt) if depth > tt.depth as i16 => {}
+            Some(tt) if tt.bound.exact() => return Some(tt.score),
+            Some(tt) if tt.bound.lower() && tt.score >= beta => return Some(tt.score),
+            Some(tt) if tt.bound.upper() && tt.score <= alpha => return Some(tt.score),
+            _ => {}
+        }
+
         let mut best_mv = None;
         let mut best_score = -30_000;
         let orig_alpha = alpha;
