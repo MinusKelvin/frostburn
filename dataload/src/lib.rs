@@ -16,56 +16,80 @@ fn filter(board: &Board, mv: Move, winner: Option<Color>) -> bool {
 }
 
 const BATCH_SIZE: usize = 1 << 14;
+const SIMUL_BATCHES: usize = 128;
 
 pub struct Loader {
-    recv: Receiver<(Vec<[i64; 2]>, Vec<[i64; 2]>, Vec<f32>)>,
-    handle: JoinHandle<()>,
+    batches: usize,
+    recv: Receiver<Batch>,
+    handles: Vec<JoinHandle<()>>,
+}
+
+struct Batch {
+    stm: Vec<[i64; 2]>,
+    nstm: Vec<[i64; 2]>,
+    targets: Vec<f32>,
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn create() -> *mut Loader {
     let mut streams = vec![];
+    let mut handles = vec![];
     for f in read_dir("data/").unwrap() {
         let path = f.unwrap().path();
         if path.is_file() && path.extension() == Some(OsStr::new("fbdata")) {
-            streams.push(data_stream(&path));
+            let (send, recv) = sync_channel(4);
+            let mut stream = data_stream(&path);
+            streams.push(recv);
+            handles.push(std::thread::spawn(move || loop {
+                let data = [(); SIMUL_BATCHES].map(|_| stream.next().unwrap());
+                if send.send(data).is_err() {
+                    return;
+                }
+            }));
         }
     }
     assert!(!streams.is_empty(), "no data");
 
-    let (send, recv) = sync_channel(2);
-    let handle = std::thread::spawn(move || loop {
-        let mut stm = Vec::with_capacity(BATCH_SIZE * 32);
-        let mut nstm = Vec::with_capacity(BATCH_SIZE * 32);
-        let mut targets = Vec::with_capacity(BATCH_SIZE);
+    let (send, recv) = sync_channel(SIMUL_BATCHES);
+    handles.push(std::thread::spawn(move || loop {
+        let mut batches = [(); SIMUL_BATCHES].map(|_| Batch::default());
 
         for i in 0..BATCH_SIZE {
-            let (board, winner) = streams
+            let datas = streams
                 .choose_mut(&mut thread_rng())
                 .unwrap()
-                .next()
+                .recv()
                 .unwrap();
 
-            for sq in board.occupied() {
-                let color = board.color_on(sq).unwrap();
-                let piece = board.piece_on(sq).unwrap();
-                stm.push([i as i64, feature(board.side_to_move(), color, piece, sq)]);
-                nstm.push([i as i64, feature(!board.side_to_move(), color, piece, sq)]);
-            }
+            for ((board, winner), batch) in datas.into_iter().zip(&mut batches) {
+                for sq in board.occupied() {
+                    let color = board.color_on(sq).unwrap();
+                    let piece = board.piece_on(sq).unwrap();
+                    batch
+                        .stm
+                        .push([i as i64, feature(board.side_to_move(), color, piece, sq)]);
+                    batch
+                        .nstm
+                        .push([i as i64, feature(!board.side_to_move(), color, piece, sq)]);
+                }
 
-            targets.push(match winner {
-                Some(c) if c == board.side_to_move() => 1.0,
-                Some(_) => 0.0,
-                None => 0.5,
-            });
+                batch.targets.push(match winner {
+                    Some(c) if c == board.side_to_move() => 1.0,
+                    Some(_) => 0.0,
+                    None => 0.5,
+                });
+            }
         }
 
-        if send.send((stm, nstm, targets)).is_err() {
-            break;
-        };
-    });
+        batches.shuffle(&mut thread_rng());
+        for batch in batches {
+            if send.send(batch).is_err() {
+                return;
+            };
+        }
+    }));
 
-    Box::into_raw(Box::new(Loader { recv, handle }))
+    Box::into_raw(Box::new(Loader { batches: 0,recv, handles }))
 }
 
 fn feature(stm: Color, color: Color, piece: Piece, sq: Square) -> i64 {
@@ -90,26 +114,37 @@ pub unsafe extern "C" fn batch_size() -> u64 {
 #[no_mangle]
 pub unsafe extern "C" fn next_batch(
     loader: &mut Loader,
-    stm_idx: &mut [[i64; 2]; BATCH_SIZE * 32],
-    nstm_idx: &mut [[i64; 2]; BATCH_SIZE * 32],
+    stm: &mut [[i64; 2]; BATCH_SIZE * 32],
+    nstm: &mut [[i64; 2]; BATCH_SIZE * 32],
     targets: &mut [f32; BATCH_SIZE],
 ) -> u64 {
-    let (stm, nstm, t) = loader.recv.recv().unwrap();
-    assert_eq!(stm.len(), nstm.len());
-    assert_eq!(t.len(), BATCH_SIZE);
+    loader.batches += 1;
+    // let t = std::time::Instant::now();
+    let batch = match loader.recv.try_recv() {
+        Ok(v) => v,
+        Err(_) => {
+            let v = loader.recv.recv().unwrap();
+            // eprintln!("batch {} delayed: {:?}", loader.batches, t.elapsed());
+            v
+        },
+    };
+    assert_eq!(batch.stm.len(), batch.nstm.len());
+    assert_eq!(batch.targets.len(), BATCH_SIZE);
 
-    targets.copy_from_slice(&t);
-    stm_idx[..stm.len()].copy_from_slice(&stm);
-    nstm_idx[..nstm.len()].copy_from_slice(&nstm);
+    targets.copy_from_slice(&batch.targets);
+    stm[..batch.stm.len()].copy_from_slice(&batch.stm);
+    nstm[..batch.nstm.len()].copy_from_slice(&batch.nstm);
 
-    stm.len() as u64
+    batch.stm.len() as u64
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn destroy(loader: *mut Loader) {
     let loader = unsafe { *Box::from_raw(loader) };
     drop(loader.recv);
-    loader.handle.join().unwrap();
+    for handle in loader.handles {
+        handle.join().unwrap();
+    }
 }
 
 fn data_stream(file: &Path) -> impl Iterator<Item = (Board, Option<Color>)> {
@@ -157,6 +192,16 @@ impl Iterator for GameStream {
                 Some(v) => return Some(v),
                 None => self.from.reset().unwrap(),
             }
+        }
+    }
+}
+
+impl Default for Batch {
+    fn default() -> Self {
+        Self {
+            stm: Vec::with_capacity(BATCH_SIZE * 32),
+            nstm: Vec::with_capacity(BATCH_SIZE * 32),
+            targets: Vec::with_capacity(BATCH_SIZE),
         }
     }
 }
