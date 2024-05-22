@@ -1,5 +1,7 @@
 use cozy_chess::{BitBoard, Board, Color, Piece, Square};
 
+use crate::Eval;
+
 #[derive(Clone)]
 pub struct Accumulator {
     enabled: [[BitBoard; 6]; 2],
@@ -42,7 +44,7 @@ impl Accumulator {
         self.black = vsub(&self.black, &NETWORK.ft.w[b_feat]);
     }
 
-    pub fn infer(&mut self, board: &Board) -> i16 {
+    pub fn infer(&mut self, board: &Board) -> Eval {
         for color in Color::ALL {
             for piece in Piece::ALL {
                 let enabled = &mut self.enabled[color as usize][piece as usize];
@@ -82,7 +84,7 @@ impl Accumulator {
             result += activated[i] as i32 * NETWORK.l1.w[i][0] as i32;
         }
 
-        (result / 128).clamp(-29_000, 29_000) as i16
+        Eval::cp((result / 128).clamp(-29_000, 29_000) as i16)
     }
 }
 

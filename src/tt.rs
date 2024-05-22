@@ -4,6 +4,8 @@ use alloc::boxed::Box;
 use bytemuck::{Pod, Zeroable};
 use cozy_chess::{Move, Piece, Square};
 
+use crate::Eval;
+
 pub struct TranspositionTable {
     table: Box<[AtomicU64]>,
 }
@@ -13,7 +15,7 @@ pub struct TranspositionTable {
 pub struct TtEntry {
     pub lower_hash_bits: u16,
     pub mv: PackedMove,
-    pub score: i16,
+    pub score: Eval,
     pub depth: u8,
     pub bound: Bound,
 }
@@ -34,13 +36,15 @@ impl TranspositionTable {
         }
     }
 
-    pub fn load(&self, hash: u64) -> Option<TtEntry> {
-        let data: TtEntry = bytemuck::cast(self.slot(hash).load(Ordering::Relaxed));
+    pub fn load(&self, hash: u64, ply: usize) -> Option<TtEntry> {
+        let mut data: TtEntry = bytemuck::cast(self.slot(hash).load(Ordering::Relaxed));
+        data.score = data.score.add_time(ply);
         (data.lower_hash_bits == hash as u16).then_some(data)
     }
 
-    pub fn store(&self, hash: u64, mut entry: TtEntry) {
+    pub fn store(&self, hash: u64, ply: usize, mut entry: TtEntry) {
         entry.lower_hash_bits = hash as u16;
+        entry.score = entry.score.sub_time(ply);
         self.slot(hash)
             .store(bytemuck::cast(entry), Ordering::Relaxed);
     }
@@ -96,7 +100,7 @@ impl Bound {
         self.0 & 1 != 0
     }
 
-    pub const fn compute(orig_alpha: i16, beta: i16, best_score: i16) -> Self {
+    pub fn compute(orig_alpha: Eval, beta: Eval, best_score: Eval) -> Self {
         match () {
             _ if best_score <= orig_alpha => Bound::UPPER,
             _ if best_score >= beta => Bound::LOWER,

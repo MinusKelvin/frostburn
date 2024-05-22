@@ -192,7 +192,7 @@ impl UciHandler {
                 clock: &|| start.elapsed(),
                 info: &mut |info| {
                     print!(
-                        "info depth {d} score cp {s} nodes {n} time {t} nps {nps} pv",
+                        "info depth {d} score {s} nodes {n} time {t} nps {nps} pv",
                         d = info.depth,
                         s = info.score,
                         n = info.nodes,

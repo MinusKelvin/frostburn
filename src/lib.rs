@@ -16,8 +16,10 @@ mod qsearch;
 mod search;
 mod tt;
 mod history;
+mod eval;
 
 pub use crate::nnue::Accumulator;
+pub use crate::eval::Eval;
 
 const MAX_PLY: usize = 256;
 const MAX_DEPTH: i16 = 120;
@@ -56,7 +58,7 @@ pub struct Limits {
 
 pub struct SearchInfo<'a> {
     pub depth: i16,
-    pub score: i16,
+    pub score: Eval,
     pub nodes: u64,
     pub time: Duration,
     pub pv: &'a [Move],

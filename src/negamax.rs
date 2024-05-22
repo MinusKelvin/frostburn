@@ -2,24 +2,24 @@ use alloc::vec;
 use cozy_chess::Board;
 
 use crate::tt::{Bound, TtEntry};
-use crate::{Search, MAX_PLY};
+use crate::{Eval, Search, MAX_PLY};
 
 impl Search<'_> {
     pub(crate) fn negamax<const PV: bool>(
         &mut self,
         pos: &Board,
-        mut alpha: i16,
-        beta: i16,
+        mut alpha: Eval,
+        beta: Eval,
         depth: i16,
         ply: usize,
-    ) -> Option<i16> {
+    ) -> Option<Eval> {
         if depth <= 0 || ply >= MAX_PLY {
             return self.qsearch(pos, alpha, beta, ply);
         }
 
         self.count_node_and_check_abort(false)?;
 
-        let tt = self.shared.tt.load(pos.hash());
+        let tt = self.shared.tt.load(pos.hash(), ply);
         let tt_mv = tt.map(|tt| tt.mv.into());
 
         match tt {
@@ -32,7 +32,7 @@ impl Search<'_> {
         }
 
         let mut best_mv = None;
-        let mut best_score = -30_000;
+        let mut best_score = Eval::mated(0);
         let orig_alpha = alpha;
 
         let mut moves = vec![];
@@ -61,7 +61,7 @@ impl Search<'_> {
 
             let mut score;
             if ply != 0 && self.history.contains(&new_pos.hash()) {
-                score = 0;
+                score = Eval::cp(0);
             } else if PV && i == 0 {
                 score = -self.negamax::<true>(&new_pos, -beta, -alpha, depth - 1, ply + 1)?;
             } else {
@@ -103,14 +103,15 @@ impl Search<'_> {
 
         let Some(best_mv) = best_mv else {
             if pos.checkers().is_empty() {
-                return Some(0);
+                return Some(Eval::cp(0));
             } else {
-                return Some(ply as i16 - 30_000);
+                return Some(Eval::mated(ply));
             }
         };
 
         self.shared.tt.store(
             pos.hash(),
+            ply,
             TtEntry {
                 lower_hash_bits: 0,
                 mv: best_mv.into(),

@@ -2,19 +2,19 @@ use alloc::vec;
 use cozy_chess::Board;
 
 use crate::tt::{Bound, TtEntry};
-use crate::{Search, MAX_PLY};
+use crate::{Eval, Search, MAX_PLY};
 
 impl Search<'_> {
     pub(crate) fn qsearch(
         &mut self,
         pos: &Board,
-        mut alpha: i16,
-        beta: i16,
+        mut alpha: Eval,
+        beta: Eval,
         ply: usize,
-    ) -> Option<i16> {
+    ) -> Option<Eval> {
         self.count_node_and_check_abort(false)?;
 
-        let tt = self.shared.tt.load(pos.hash());
+        let tt = self.shared.tt.load(pos.hash(), ply);
         let tt_mv = tt.map(|tt| tt.mv.into());
 
         match tt {
@@ -58,9 +58,9 @@ impl Search<'_> {
 
         if !has_moves {
             if pos.checkers().is_empty() {
-                return Some(0);
+                return Some(Eval::cp(0));
             } else {
-                return Some(ply as i16 - 30_000);
+                return Some(Eval::mated(ply));
             }
         }
 
@@ -89,6 +89,7 @@ impl Search<'_> {
         if let Some(best_mv) = best_mv {
             self.shared.tt.store(
                 pos.hash(),
+                ply,
                 TtEntry {
                     lower_hash_bits: 0,
                     mv: best_mv.into(),
