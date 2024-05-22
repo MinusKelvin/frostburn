@@ -79,8 +79,8 @@ opt = torch.optim.Adam(model.parameters(), lr=0.01)
 PRINT_ITERS = 100
 recent_losses = torch.zeros(PRINT_ITERS).to(gpu)
 
-ITERS = 50_000
-lr_drops = [45_000]
+ITERS = 100_000
+lr_drops = [75_000, 95_000]
 
 start = time()
 
