@@ -31,6 +31,14 @@ impl Search<'_> {
             _ => {}
         }
 
+        if !PV && pos.checkers().is_empty() {
+            let new_pos = pos.null_move().unwrap();
+            let score = self.search_opp::<false>(&new_pos, beta - 1, beta, depth - 4, ply + 1)?;
+            if score >= beta {
+                return Some(score);
+            }
+        }
+
         let mut best_mv = None;
         let mut best_score = Eval::mated(0);
         let orig_alpha = alpha;
@@ -63,12 +71,12 @@ impl Search<'_> {
             if ply != 0 && self.history.contains(&new_pos.hash()) {
                 score = Eval::cp(0);
             } else if PV && i == 0 {
-                score = -self.negamax::<true>(&new_pos, -beta, -alpha, depth - 1, ply + 1)?;
+                score = self.search_opp::<true>(&new_pos, alpha, beta, depth - 1, ply + 1)?;
             } else {
-                score = -self.negamax::<false>(&new_pos, -alpha - 1, -alpha, depth - 1, ply + 1)?;
+                score = self.search_opp::<false>(&new_pos, alpha, alpha + 1, depth - 1, ply + 1)?;
 
                 if PV && score > alpha {
-                    score = -self.negamax::<true>(&new_pos, -beta, -alpha, depth - 1, ply + 1)?;
+                    score = self.search_opp::<true>(&new_pos, alpha, beta, depth - 1, ply + 1)?;
                 }
             }
 
@@ -122,5 +130,17 @@ impl Search<'_> {
         );
 
         Some(best_score)
+    }
+
+    fn search_opp<const PV: bool>(
+        &mut self,
+        pos: &Board,
+        alpha: Eval,
+        beta: Eval,
+        depth: i16,
+        ply: usize,
+    ) -> Option<Eval> {
+        self.negamax::<PV>(pos, -beta, -alpha, depth, ply)
+            .map(|e| -e)
     }
 }
