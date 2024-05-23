@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+INITIAL_LR = 0.001
+ITERS = 100_000
+LR_DROPS = [75_000, 90_000]
+
 import ctypes, subprocess, sys, os, json
 from time import time, strftime
 
@@ -74,20 +78,19 @@ def batch_stream():
         data_loader.destroy(loader)
 
 model = Model().to(gpu)
-opt = torch.optim.Adam(model.parameters(), lr=0.01)
+opt = torch.optim.Adam(model.parameters(), lr=INITIAL_LR)
 
 PRINT_ITERS = 100
 recent_losses = torch.zeros(PRINT_ITERS).to(gpu)
-
-ITERS = 100_000
-lr_drops = [75_000, 95_000]
 
 start = time()
 
 train_id = strftime("%Y-%m-%d-%H-%M-%S")
 
+train_loss = []
+
 for i, (stm, nstm, targets) in enumerate(batch_stream()):
-    if i in lr_drops:
+    if i in LR_DROPS:
         opt.param_groups[0]["lr"] /= 10
     if i == ITERS:
         break
@@ -104,7 +107,9 @@ for i, (stm, nstm, targets) in enumerate(batch_stream()):
     recent_losses[i % PRINT_ITERS] = loss
 
     if (i + 1) % PRINT_ITERS == 0:
-        print(f"\r{i+1:>8}/{ITERS}    {i * batch_size / (time() - start):>5.0f} pos/s    loss: {torch.mean(recent_losses).item():.6f}   ", end="")
+        print_loss = torch.mean(recent_losses).item()
+        print(f"\r{i+1:>8}/{ITERS}    {i * batch_size / (time() - start):>5.0f} pos/s    loss: {print_loss:.6f}   ", end="")
+        train_loss.append(print_loss)
 
 print()
 
@@ -116,3 +121,14 @@ with open(f"nets/{train_id}.json", "w") as f:
     }, f)
 
 print(train_id)
+
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    print("matplotlib not installed; not generating loss graph")
+    sys.exit(0)
+
+plt.plot(range(0, ITERS, PRINT_ITERS), train_loss)
+for drop in LR_DROPS:
+    plt.axvline(drop, ls=":")
+plt.savefig("loss.png")
