@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 INITIAL_LR = 0.001
-ITERS = 100_000
-LR_DROPS = [75_000, 90_000]
+ITERS = 500_000
+LR_DROPS = [400_000, 475_000]
 
 import ctypes, subprocess, sys, os, json
 from time import time, strftime
