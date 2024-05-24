@@ -31,6 +31,12 @@ impl Search<'_> {
             _ => {}
         }
 
+        let static_eval = self.data.accumulator.infer(pos);
+
+        if !PV && pos.checkers().is_empty() && depth < 5 && static_eval >= beta + 50 * depth {
+            return Some(static_eval);
+        }
+
         if !PV && pos.checkers().is_empty() {
             let new_pos = pos.null_move().unwrap();
             let score = self.search_opp::<false>(&new_pos, beta - 1, beta, depth - 4, ply + 1)?;
