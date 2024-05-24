@@ -73,7 +73,19 @@ impl Search<'_> {
             } else if PV && i == 0 {
                 score = self.search_opp::<true>(&new_pos, alpha, beta, depth - 1, ply + 1)?;
             } else {
-                score = self.search_opp::<false>(&new_pos, alpha, alpha + 1, depth - 1, ply + 1)?;
+                let mut r = i as i16 / 4;
+
+                if r < 0 || pos.colors(!pos.side_to_move()).has(mv.to) {
+                    r = 0;
+                }
+
+                score =
+                    self.search_opp::<false>(&new_pos, alpha, alpha + 1, depth - r - 1, ply + 1)?;
+
+                if r > 0 && score > alpha {
+                    score =
+                        self.search_opp::<false>(&new_pos, alpha, alpha + 1, depth - 1, ply + 1)?;
+                }
 
                 if PV && score > alpha {
                     score = self.search_opp::<true>(&new_pos, alpha, beta, depth - 1, ply + 1)?;
