@@ -99,7 +99,9 @@ fn play_game(shared: &mut [SharedData; 2], a_nodes: u64, b_nodes: u64) -> Game {
 
     let mut limits = [Limits::default(); 2];
     limits[0].min_nodes = Some(a_nodes);
+    limits[0].nodes = Some(100 * a_nodes);
     limits[1].min_nodes = Some(b_nodes);
+    limits[1].nodes = Some(100 * b_nodes);
 
     let mut local = [LocalData::new(), LocalData::new()];
 
