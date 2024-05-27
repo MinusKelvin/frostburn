@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# git commit message hook. install with:
+# ln -s ../../commit-msg .git/hooks/commit-msg
+
+if ! git diff --exit-code --quiet
+then
+    echo "Working directory is not clean; cannot generate bench" >&2
+    exit 1
+fi
+
+cargo build -p frostburn-uci || exit 1
+
+NODES=$(target/debug/frostburn-uci bench | awk '{v=$1}END{print v}')
+
+echo >>"$1"
+echo "bench: $NODES" >>"$1"

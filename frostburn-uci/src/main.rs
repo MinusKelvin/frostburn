@@ -251,7 +251,7 @@ fn bench() {
             data: &mut local,
             shared: &shared,
             limits: Limits {
-                depth: Some(6),
+                depth: Some(10),
                 ..Default::default()
             },
         }
@@ -262,7 +262,7 @@ fn bench() {
     }
 
     println!(
-        "nodes {total_nodes} nps {}",
+        "{total_nodes} nodes {} nps",
         ((total_nodes as f64) / search_time.as_secs_f64()) as u64
     );
 }
