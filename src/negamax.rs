@@ -85,7 +85,8 @@ impl Search<'_> {
             } else if PV && i == 0 {
                 score = self.search_opp::<true>(&new_pos, alpha, beta, depth - 1, ply + 1)?;
             } else {
-                let mut r = i as i16 / 4;
+                let base_r = self.shared.log(i) * self.shared.log(depth as usize) / 1.5 + 0.25;
+                let mut r = base_r as i16;
 
                 if r < 0 || pos.colors(!pos.side_to_move()).has(mv.to) {
                     r = 0;
