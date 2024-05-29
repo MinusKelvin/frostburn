@@ -37,6 +37,7 @@ pub struct SharedData {
     abort: AtomicBool,
     nodes: AtomicU64,
     tt: TranspositionTable,
+    log_table: [f32; 32],
 }
 
 pub struct Search<'a> {
@@ -117,10 +118,15 @@ impl LocalData {
 
 impl SharedData {
     pub fn new(tt_mb: usize) -> Self {
+        let mut log_table = [0.0; 32];
+        for i in 1..32 {
+            log_table[i] = (i as f32).ln();
+        }
         SharedData {
             abort: AtomicBool::new(false),
             nodes: AtomicU64::new(0),
             tt: TranspositionTable::new(tt_mb),
+            log_table,
         }
     }
 
@@ -131,5 +137,9 @@ impl SharedData {
 
     pub fn abort(&self) {
         self.abort.store(true, Ordering::SeqCst);
+    }
+
+    fn log(&self, i: usize) -> f32 {
+        self.log_table[i.min(self.log_table.len() - 1)]
     }
 }
