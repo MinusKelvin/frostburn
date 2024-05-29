@@ -33,7 +33,12 @@ impl Search<'_> {
 
         let static_eval = self.data.accumulator.infer(pos);
 
-        let eval = tt.map_or(static_eval, |tt| tt.score);
+        let eval = match tt {
+            Some(tt) if tt.bound.exact() => tt.score,
+            Some(tt) if tt.bound.lower() => static_eval.max(tt.score),
+            Some(tt) if tt.bound.upper() => static_eval.min(tt.score),
+            _ => static_eval,
+        };
 
         if !PV && pos.checkers().is_empty() && depth < 5 && eval >= beta + 50 * depth {
             return Some(eval);
@@ -46,7 +51,7 @@ impl Search<'_> {
                 return Some(score);
             }
         }
-        
+
         let orig_alpha = alpha;
         let mut best_mv = None;
         let mut best_score = Eval::mated(0);
