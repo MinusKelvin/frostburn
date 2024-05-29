@@ -1,5 +1,5 @@
 use alloc::vec;
-use cozy_chess::Board;
+use cozy_chess::{Board, Move, Square};
 
 use crate::tt::{Bound, TtEntry};
 use crate::{Eval, Search, MAX_PLY};
@@ -139,15 +139,24 @@ impl Search<'_> {
             }
         };
 
+        let bound = Bound::compute(orig_alpha, beta, best_score);
         self.shared.tt.store(
             pos.hash(),
             ply,
             TtEntry {
                 lower_hash_bits: 0,
-                mv: best_mv.into(),
+                mv: match bound {
+                    Bound::UPPER => tt_mv.unwrap_or(Move {
+                        from: Square::A1,
+                        to: Square::A1,
+                        promotion: None,
+                    }),
+                    _ => best_mv.into(),
+                }
+                .into(),
                 score: best_score,
                 depth: depth as u8,
-                bound: Bound::compute(orig_alpha, beta, best_score),
+                bound,
             },
         );
 
