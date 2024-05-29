@@ -17,6 +17,7 @@ mod search;
 mod tt;
 mod history;
 mod eval;
+mod move_picker;
 
 pub use crate::nnue::Accumulator;
 pub use crate::eval::Eval;

@@ -1,6 +1,6 @@
-use alloc::vec;
 use cozy_chess::{Board, Move, Square};
 
+use crate::move_picker::MovePicker;
 use crate::tt::{Bound, TtEntry};
 use crate::{Eval, Search, MAX_PLY};
 
@@ -46,31 +46,15 @@ impl Search<'_> {
                 return Some(score);
             }
         }
-
+        
+        let orig_alpha = alpha;
         let mut best_mv = None;
         let mut best_score = Eval::mated(0);
-        let orig_alpha = alpha;
-
-        let mut moves = vec![];
-        pos.generate_moves(|mvs| {
-            for mv in mvs {
-                let score = if tt_mv.is_some_and(|tt_mv| mv == tt_mv) {
-                    1_000_000
-                } else if pos.colors(!pos.side_to_move()).has(mv.to) {
-                    100_000 + pos.piece_on(mv.to).unwrap() as i32
-                } else {
-                    self.data.history.get(pos, mv) as i32
-                };
-                moves.push((mv, score));
-            }
-            false
-        });
-
-        moves.sort_unstable_by_key(|&(_, score)| core::cmp::Reverse(score));
+        let mut move_picker = MovePicker::new(pos, &self.data, tt_mv, false);
 
         self.history.push(pos.hash());
 
-        for (i, &(mv, mv_score)) in moves.iter().enumerate() {
+        while let Some((i, mv, mv_score)) = move_picker.next(&self.data) {
             if !PV && mv_score < 100_000 && i > depth as usize * depth as usize + 4 {
                 continue;
             }
@@ -121,7 +105,7 @@ impl Search<'_> {
             if score > beta {
                 if !pos.colors(!pos.side_to_move()).has(mv.to) {
                     self.data.history.update(pos, mv, 64 * depth);
-                    for &(failure, _) in &moves[..i] {
+                    for failure in move_picker.failed() {
                         if !pos.colors(!pos.side_to_move()).has(failure.to) {
                             self.data.history.update(pos, failure, -64 * depth);
                         }
