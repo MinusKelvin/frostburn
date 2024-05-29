@@ -11,7 +11,7 @@ fi
 
 cargo build -p frostburn-uci || exit 1
 
-NODES=$(target/debug/frostburn-uci bench | awk '{v=$1}END{print v}')
+NODES=$(target/debug/frostburn-uci bench | tee /dev/stderr | awk '{v=$1}END{print v}')
 
 echo >>"$1"
 echo "bench: $NODES" >>"$1"

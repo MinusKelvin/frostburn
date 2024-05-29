@@ -33,8 +33,10 @@ impl Search<'_> {
 
         let static_eval = self.data.accumulator.infer(pos);
 
-        if !PV && pos.checkers().is_empty() && depth < 5 && static_eval >= beta + 50 * depth {
-            return Some(static_eval);
+        let eval = tt.map_or(static_eval, |tt| tt.score);
+
+        if !PV && pos.checkers().is_empty() && depth < 5 && eval >= beta + 50 * depth {
+            return Some(eval);
         }
 
         if !PV && pos.checkers().is_empty() {
