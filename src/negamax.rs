@@ -68,7 +68,11 @@ impl Search<'_> {
 
         self.history.push(pos.hash());
 
-        for (i, &(mv, _)) in moves.iter().enumerate() {
+        for (i, &(mv, mv_score)) in moves.iter().enumerate() {
+            if !PV && mv_score < 100_000 && i > depth as usize * depth as usize + 4 {
+                continue;
+            }
+
             let mut new_pos = pos.clone();
             new_pos.play_unchecked(mv);
             self.data.pv_table[ply + 1].clear();
