@@ -4,6 +4,7 @@ use crate::LocalData;
 
 pub struct MovePicker<'a> {
     _skip_quiets: bool,
+    has_moves: bool,
     _board: &'a Board,
     moves: Vec<(Move, i32)>,
     next_idx: usize,
@@ -12,8 +13,10 @@ pub struct MovePicker<'a> {
 impl<'a> MovePicker<'a> {
     pub fn new(board: &'a Board, data: &LocalData, tt_mv: Option<Move>, skip_quiets: bool) -> Self {
         let mut moves = Vec::with_capacity(64);
+        let mut has_moves = false;
 
         board.generate_moves(|mut mvs| {
+            has_moves = true;
             if skip_quiets {
                 mvs.to &= board.colors(!board.side_to_move());
             }
@@ -35,6 +38,7 @@ impl<'a> MovePicker<'a> {
             _board: board,
             moves,
             next_idx: 0,
+            has_moves
         }
     }
 
@@ -60,5 +64,9 @@ impl<'a> MovePicker<'a> {
 
     pub fn failed(&self) -> impl Iterator<Item = Move> + '_ {
         self.moves[..self.next_idx - 1].iter().map(|&(mv, _)| mv)
+    }
+
+    pub fn has_moves(&self) -> bool {
+        self.has_moves
     }
 }
