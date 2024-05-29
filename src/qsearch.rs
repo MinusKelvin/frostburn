@@ -1,6 +1,7 @@
 use alloc::vec;
 use cozy_chess::Board;
 
+use crate::move_picker::MovePicker;
 use crate::tt::{Bound, TtEntry};
 use crate::{Eval, Search, MAX_PLY};
 
@@ -26,9 +27,9 @@ impl Search<'_> {
 
         let stand_pat = self.data.accumulator.infer(pos);
 
+        let orig_alpha = alpha;
         let mut best_mv = None;
         let mut best_score = stand_pat;
-        let orig_alpha = alpha;
 
         if stand_pat > beta || ply >= MAX_PLY {
             return Some(stand_pat);
@@ -38,25 +39,9 @@ impl Search<'_> {
             alpha = stand_pat;
         }
 
-        let mut moves = vec![];
-        let mut has_moves = false;
-        pos.generate_moves(|mvs| {
-            has_moves = true;
-            for mv in mvs {
-                if !pos.colors(!pos.side_to_move()).has(mv.to) {
-                    continue;
-                }
-                let score = if tt_mv.is_some_and(|tt_mv| mv == tt_mv) {
-                    1_000_000
-                } else {
-                    100_000 + pos.piece_on(mv.to).unwrap() as i32
-                };
-                moves.push((mv, score));
-            }
-            false
-        });
+        let mut move_picker = MovePicker::new(pos, &self.data, tt_mv, true);
 
-        if !has_moves {
+        if !move_picker.has_moves() {
             if pos.checkers().is_empty() {
                 return Some(Eval::cp(0));
             } else {
@@ -64,9 +49,7 @@ impl Search<'_> {
             }
         }
 
-        moves.sort_unstable_by_key(|&(_, score)| core::cmp::Reverse(score));
-
-        for (mv, _) in moves {
+        while let Some((_, mv, _)) = move_picker.next(&self.data) {
             let mut new_pos = pos.clone();
             new_pos.play_unchecked(mv);
 
