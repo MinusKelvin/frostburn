@@ -39,7 +39,7 @@ impl Search<'_> {
             return Some(eval);
         }
 
-        if !PV && pos.checkers().is_empty() {
+        if !PV && pos.checkers().is_empty() && eval >= beta {
             let new_pos = pos.null_move().unwrap();
             let score = self.search_opp::<false>(&new_pos, beta - 1, beta, depth - 4, ply + 1)?;
             if score >= beta {
