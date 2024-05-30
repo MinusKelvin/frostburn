@@ -1,4 +1,4 @@
-use cozy_chess::{Board, Move, Square};
+use cozy_chess::{Board, Move, Piece, Square};
 
 use crate::move_picker::MovePicker;
 use crate::tt::{Bound, TtEntry};
@@ -39,7 +39,10 @@ impl Search<'_> {
             return Some(eval);
         }
 
-        if !PV && pos.checkers().is_empty() && eval >= beta {
+        let has_sliders = [Piece::Bishop, Piece::Rook, Piece::Queen]
+            .into_iter()
+            .any(|p| !pos.colored_pieces(pos.side_to_move(), p).is_empty());
+        if !PV && pos.checkers().is_empty() && eval >= beta && has_sliders {
             let new_pos = pos.null_move().unwrap();
             let r = depth / 3 + 2 + (eval - beta) / 150;
             let score = self.search_opp::<false>(&new_pos, beta - 1, beta, depth - r, ply + 1)?;
@@ -47,7 +50,7 @@ impl Search<'_> {
                 return Some(score);
             }
         }
-        
+
         let orig_alpha = alpha;
         let mut best_mv = None;
         let mut best_score = Eval::mated(0);
