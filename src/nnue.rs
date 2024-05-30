@@ -1,3 +1,4 @@
+use arrayvec::ArrayVec;
 use cozy_chess::{BitBoard, Board, Color, Piece, Square};
 
 use crate::Eval;
@@ -30,21 +31,11 @@ impl Accumulator {
         }
     }
 
-    fn add_feature(&mut self, color: Color, piece: Piece, sq: Square) {
-        let w_feat = feature(Color::White, color, piece, sq);
-        let b_feat = feature(Color::Black, color, piece, sq);
-        self.white = vadd(&self.white, &NETWORK.ft.w[w_feat]);
-        self.black = vadd(&self.black, &NETWORK.ft.w[b_feat]);
-    }
-
-    fn rm_feature(&mut self, color: Color, piece: Piece, sq: Square) {
-        let w_feat = feature(Color::White, color, piece, sq);
-        let b_feat = feature(Color::Black, color, piece, sq);
-        self.white = vsub(&self.white, &NETWORK.ft.w[w_feat]);
-        self.black = vsub(&self.black, &NETWORK.ft.w[b_feat]);
-    }
-
     pub fn infer(&mut self, board: &Board) -> Eval {
+        let mut white_adds = ArrayVec::<_, 32>::new();
+        let mut white_rms = ArrayVec::<_, 32>::new();
+        let mut black_adds = ArrayVec::<_, 32>::new();
+        let mut black_rms = ArrayVec::<_, 32>::new();
         for color in Color::ALL {
             for piece in Piece::ALL {
                 let enabled = &mut self.enabled[color as usize][piece as usize];
@@ -54,13 +45,18 @@ impl Accumulator {
                 *enabled = feats;
 
                 for sq in removed {
-                    self.rm_feature(color, piece, sq);
+                    white_rms.push(&NETWORK.ft.w[feature(Color::White, color, piece, sq)]);
+                    black_rms.push(&NETWORK.ft.w[feature(Color::Black, color, piece, sq)]);
                 }
                 for sq in added {
-                    self.add_feature(color, piece, sq);
+                    white_adds.push(&NETWORK.ft.w[feature(Color::White, color, piece, sq)]);
+                    black_adds.push(&NETWORK.ft.w[feature(Color::Black, color, piece, sq)]);
                 }
             }
         }
+
+        update(&mut self.white, &white_adds, &white_rms);
+        update(&mut self.black, &black_adds, &black_rms);
 
         let mut activated = [0; 512];
         let (left, right) = activated.split_at_mut(256);
@@ -88,20 +84,17 @@ impl Accumulator {
     }
 }
 
-fn vadd<const N: usize>(a: &[i16; N], b: &[i16; N]) -> [i16; N] {
-    let mut result = [0; N];
-    for i in 0..N {
-        result[i] = a[i] + b[i];
+fn update<const N: usize>(acc: &mut [i16; N], adds: &[&[i16; N]], rms: &[&[i16; N]]) {
+    for add in adds {
+        for i in 0..N {
+            acc[i] += add[i];
+        }
     }
-    result
-}
-
-fn vsub<const N: usize>(a: &[i16; N], b: &[i16; N]) -> [i16; N] {
-    let mut result = [0; N];
-    for i in 0..N {
-        result[i] = a[i] - b[i];
+    for rm in rms {
+        for i in 0..N {
+            acc[i] -= rm[i];
+        }
     }
-    result
 }
 
 fn crelu<const N: usize>(a: &[i16; N]) -> [i16; N] {
