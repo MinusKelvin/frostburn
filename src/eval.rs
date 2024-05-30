@@ -82,3 +82,11 @@ impl Sub<i16> for Eval {
         Eval(self.0 - rhs)
     }
 }
+
+impl Sub<Eval> for Eval {
+    type Output = i16;
+
+    fn sub(self, rhs: Eval) -> Self::Output {
+        self.0 - rhs.0
+    }
+}
