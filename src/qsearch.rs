@@ -14,8 +14,8 @@ impl Search<'_> {
     ) -> Option<Eval> {
         self.count_node_and_check_abort(false)?;
 
-        let tt = self.shared.tt.load(pos.hash(), ply);
-        let tt_mv = tt.map(|tt| tt.mv.into());
+        let tt = self.shared.tt.load(pos, ply);
+        let tt_mv = tt.and_then(|tt| tt.mv.into());
 
         match tt {
             Some(tt) if tt.bound.exact() => return Some(tt.score),
@@ -74,7 +74,7 @@ impl Search<'_> {
                 ply,
                 TtEntry {
                     lower_hash_bits: 0,
-                    mv: best_mv.into(),
+                    mv: Some(best_mv).into(),
                     score: best_score,
                     depth: 0,
                     bound: Bound::compute(orig_alpha, beta, best_score),

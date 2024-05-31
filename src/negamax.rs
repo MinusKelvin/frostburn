@@ -1,4 +1,4 @@
-use cozy_chess::{Board, Move, Square};
+use cozy_chess::Board;
 
 use crate::move_picker::MovePicker;
 use crate::tt::{Bound, TtEntry};
@@ -19,8 +19,8 @@ impl Search<'_> {
 
         self.count_node_and_check_abort(false)?;
 
-        let tt = self.shared.tt.load(pos.hash(), ply);
-        let tt_mv = tt.map(|tt| tt.mv.into());
+        let tt = self.shared.tt.load(pos, ply);
+        let tt_mv = tt.and_then(|tt| tt.mv.into());
 
         match tt {
             _ if PV => {}
@@ -47,7 +47,7 @@ impl Search<'_> {
                 return Some(score);
             }
         }
-        
+
         let orig_alpha = alpha;
         let mut best_mv = None;
         let mut best_score = Eval::mated(0);
@@ -134,11 +134,7 @@ impl Search<'_> {
             TtEntry {
                 lower_hash_bits: 0,
                 mv: match bound {
-                    Bound::UPPER => tt_mv.unwrap_or(Move {
-                        from: Square::A1,
-                        to: Square::A1,
-                        promotion: None,
-                    }),
+                    Bound::UPPER => tt_mv,
                     _ => best_mv.into(),
                 }
                 .into(),

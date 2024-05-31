@@ -2,7 +2,7 @@ use core::sync::atomic::{AtomicU64, Ordering};
 
 use alloc::boxed::Box;
 use bytemuck::{Pod, Zeroable};
-use cozy_chess::{Move, Piece, Square};
+use cozy_chess::{Board, Move, Piece, Square};
 
 use crate::Eval;
 
@@ -36,10 +36,12 @@ impl TranspositionTable {
         }
     }
 
-    pub fn load(&self, hash: u64, ply: usize) -> Option<TtEntry> {
-        let mut data: TtEntry = bytemuck::cast(self.slot(hash).load(Ordering::Relaxed));
+    pub fn load(&self, board: &Board, ply: usize) -> Option<TtEntry> {
+        let mut data: TtEntry = bytemuck::cast(self.slot(board.hash()).load(Ordering::Relaxed));
         data.score = data.score.add_time(ply);
-        (data.lower_hash_bits == hash as u16).then_some(data)
+        Some(data)
+            .filter(|data| data.lower_hash_bits == board.hash() as u16)
+            .filter(|data| !Option::from(data.mv).is_some_and(|mv| !board.is_legal(mv)))
     }
 
     pub fn store(&self, hash: u64, ply: usize, mut entry: TtEntry) {
@@ -54,23 +56,25 @@ impl TranspositionTable {
     }
 }
 
-impl From<Move> for PackedMove {
-    fn from(value: Move) -> Self {
-        PackedMove(
-            value.from as u16
-                | (value.to as u16) << 6
-                | value.promotion.map_or(6, |p| p as u16) << 12,
-        )
+impl From<Option<Move>> for PackedMove {
+    fn from(value: Option<Move>) -> Self {
+        value.map_or(PackedMove(0), |value| {
+            PackedMove(
+                value.from as u16
+                    | (value.to as u16) << 6
+                    | value.promotion.map_or(6, |p| p as u16) << 12,
+            )
+        })
     }
 }
 
-impl From<PackedMove> for Move {
+impl From<PackedMove> for Option<Move> {
     fn from(value: PackedMove) -> Self {
-        Move {
+        (value.0 != 0).then_some(Move {
             from: Square::index((value.0 & 0x3F) as usize),
             to: Square::index((value.0 >> 6 & 0x3F) as usize),
             promotion: Piece::try_index((value.0 >> 12 & 0x7) as usize),
-        }
+        })
     }
 }
 
