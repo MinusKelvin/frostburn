@@ -38,15 +38,7 @@ impl Search<'_> {
             alpha = stand_pat;
         }
 
-        let mut move_picker = MovePicker::new(pos, &self.data, tt_mv, true);
-
-        if !move_picker.has_moves() {
-            if pos.checkers().is_empty() {
-                return Some(Eval::cp(0));
-            } else {
-                return Some(Eval::mated(ply));
-            }
-        }
+        let mut move_picker = MovePicker::new(pos, tt_mv, true);
 
         while let Some((_, mv, _)) = move_picker.next(&self.data) {
             let mut new_pos = pos.clone();
@@ -65,6 +57,14 @@ impl Search<'_> {
 
             if score > beta {
                 break;
+            }
+        }
+
+        if !move_picker.has_moves() {
+            if pos.checkers().is_empty() {
+                return Some(Eval::cp(0));
+            } else {
+                return Some(Eval::mated(ply));
             }
         }
 

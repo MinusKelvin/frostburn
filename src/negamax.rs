@@ -51,7 +51,7 @@ impl Search<'_> {
         let orig_alpha = alpha;
         let mut best_mv = None;
         let mut best_score = Eval::mated(0);
-        let mut move_picker = MovePicker::new(pos, &self.data, tt_mv, false);
+        let mut move_picker = MovePicker::new(pos, tt_mv, false);
 
         self.history.push(pos.hash());
 
