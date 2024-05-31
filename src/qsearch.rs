@@ -1,4 +1,3 @@
-use alloc::vec;
 use cozy_chess::Board;
 
 use crate::move_picker::MovePicker;

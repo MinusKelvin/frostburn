@@ -75,7 +75,6 @@ impl From<PackedMove> for Move {
 }
 
 impl Bound {
-    pub const NONE: Self = Bound(0);
     pub const UPPER: Self = Bound(1);
     pub const LOWER: Self = Bound(2);
     pub const EXACT: Self = Bound(3);
@@ -92,13 +91,13 @@ impl Bound {
         self.0 == 1
     }
 
-    pub const fn lower_or_exact(self) -> bool {
-        self.0 & 2 != 0
-    }
+    // pub const fn lower_or_exact(self) -> bool {
+    //     self.0 & 2 != 0
+    // }
 
-    pub const fn upper_or_exact(self) -> bool {
-        self.0 & 1 != 0
-    }
+    // pub const fn upper_or_exact(self) -> bool {
+    //     self.0 & 1 != 0
+    // }
 
     pub fn compute(orig_alpha: Eval, beta: Eval, best_score: Eval) -> Self {
         match () {
