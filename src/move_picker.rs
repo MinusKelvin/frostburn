@@ -1,4 +1,5 @@
-use cozy_chess::{Board, Move};
+use arrayvec::ArrayVec;
+use cozy_chess::{Board, Move, PieceMoves};
 
 use crate::LocalData;
 
@@ -8,16 +9,13 @@ pub struct MovePicker<'a> {
     generated: bool,
     board: &'a Board,
     moves: Vec<(Move, i32)>,
+    quiets: ArrayVec<PieceMoves, 32>,
     tt_mv: Option<Move>,
     next_idx: usize,
 }
 
 impl<'a> MovePicker<'a> {
-    pub fn new(
-        board: &'a Board,
-        tt_mv: Option<Move>,
-        skip_quiets: bool,
-    ) -> Self {
+    pub fn new(board: &'a Board, tt_mv: Option<Move>, skip_quiets: bool) -> Self {
         let opp = board.colors(!board.side_to_move());
 
         MovePicker {
@@ -25,38 +23,58 @@ impl<'a> MovePicker<'a> {
             generated: false,
             board,
             moves: vec![],
+            quiets: ArrayVec::new(),
             tt_mv: tt_mv.filter(|&mv| !skip_quiets || opp.has(mv.to)),
             next_idx: 0,
             has_moves: tt_mv.is_some(),
         }
     }
 
-    fn generate(&mut self, data: &LocalData) {
+    fn generate(&mut self, _data: &LocalData) {
         self.moves.reserve(64);
         if let Some(tt_mv) = self.tt_mv {
             self.moves.push((tt_mv, 1_000_000));
         }
         let opp = self.board.colors(!self.board.side_to_move());
 
-        self.board.generate_moves(|mut mvs| {
+        self.board.generate_moves(|mvs| {
             self.has_moves = true;
-            if self.skip_quiets {
-                mvs.to &= opp;
-            }
-            for mv in mvs {
-                let score = if self.tt_mv.is_some_and(|tt_mv| mv == tt_mv) {
+
+            let mut captures = mvs;
+            captures.to &= opp;
+
+            for mv in captures {
+                if Some(mv) == self.tt_mv {
                     continue;
-                } else if opp.has(mv.to) {
-                    100_000 + self.board.piece_on(mv.to).unwrap() as i32
-                } else {
-                    data.history.get(self.board, mv) as i32
-                };
-                self.moves.push((mv, score));
+                }
+                let victim = self.board.piece_on(mv.to).unwrap();
+                self.moves.push((mv, 100_000 + victim as i32));
             }
+
+            if !self.skip_quiets {
+                let mut quiets = mvs;
+                quiets.to &= !opp;
+                if !quiets.is_empty() {
+                    self.quiets.push(quiets);
+                }
+            }
+
             false
         });
 
         self.generated = true;
+    }
+
+    fn expand_quiets(&mut self, data: &LocalData) {
+        for mvs in self.quiets.drain(..) {
+            for mv in mvs {
+                if Some(mv) == self.tt_mv {
+                    continue;
+                }
+                let score = data.history.get(self.board, mv) as i32;
+                self.moves.push((mv, score));
+            }
+        }
     }
 
     pub fn next(&mut self, data: &LocalData) -> Option<(usize, Move, i32)> {
@@ -71,7 +89,10 @@ impl<'a> MovePicker<'a> {
         }
 
         if self.next_idx >= self.moves.len() {
-            return None;
+            self.expand_quiets(data);
+            if self.next_idx >= self.moves.len() {
+                return None;
+            }
         }
 
         let i = self.next_idx;
