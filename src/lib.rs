@@ -31,6 +31,7 @@ pub struct LocalData {
     local_nodes: u64,
     accumulator: Accumulator,
     history: PieceHistory,
+    evals: [Option<Eval>; MAX_PLY]
 }
 
 pub struct SharedData {
@@ -112,6 +113,7 @@ impl LocalData {
             local_nodes: 0,
             accumulator: Accumulator::new(),
             history: PieceHistory::new(),
+            evals: [None; MAX_PLY]
         }
     }
 }

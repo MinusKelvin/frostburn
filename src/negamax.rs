@@ -32,8 +32,12 @@ impl Search<'_> {
         }
 
         let static_eval = self.data.accumulator.infer(pos);
-
         let eval = tt.map_or(static_eval, |tt| tt.score);
+
+        self.data.evals[ply] = pos.checkers().is_empty().then_some(static_eval);
+        let improving = ply >= 2
+            && pos.checkers().is_empty()
+            && self.data.evals[ply - 2].is_some_and(|prior| static_eval > prior);
 
         if !PV && pos.checkers().is_empty() && depth < 5 && eval >= beta + 50 * depth {
             return Some(eval);
@@ -47,7 +51,7 @@ impl Search<'_> {
                 return Some(score);
             }
         }
-        
+
         let orig_alpha = alpha;
         let mut best_mv = None;
         let mut best_score = Eval::mated(0);
@@ -56,7 +60,10 @@ impl Search<'_> {
         self.history.push(pos.hash());
 
         while let Some((i, mv, mv_score)) = move_picker.next(&self.data) {
-            if !PV && mv_score < 100_000 && i > depth as usize * depth as usize + 4 {
+            if !PV
+                && mv_score < 100_000
+                && i > (depth as usize * depth as usize + 4) >> improving as i32
+            {
                 continue;
             }
 
