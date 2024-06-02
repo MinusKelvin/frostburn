@@ -47,7 +47,7 @@ impl Search<'_> {
                 return Some(score);
             }
         }
-        
+
         let orig_alpha = alpha;
         let mut best_mv = None;
         let mut best_score = Eval::mated(0);
@@ -57,6 +57,10 @@ impl Search<'_> {
 
         while let Some((i, mv, mv_score)) = move_picker.next(&self.data) {
             if !PV && mv_score < 100_000 && i > depth as usize * depth as usize + 4 {
+                continue;
+            }
+
+            if !PV && mv_score < 100_000 && depth < 3 && eval < alpha - 150 * depth {
                 continue;
             }
 
