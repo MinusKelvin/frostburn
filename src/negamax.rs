@@ -73,6 +73,10 @@ impl Search<'_> {
                 let base_r = self.shared.log(i) * self.shared.log(depth as usize) / 1.5 + 0.25;
                 let mut r = base_r as i16;
 
+                if mv_score < 100_000 {
+                    r -= (mv_score / 4096) as i16;
+                }
+
                 if r < 0 || pos.colors(!pos.side_to_move()).has(mv.to) {
                     r = 0;
                 }
