@@ -3,6 +3,7 @@
 INITIAL_LR = 0.001
 ITERS = 500_000
 LR_DROPS = [400_000, 475_000]
+WEIGHT_DECAY = 1e-6
 
 import ctypes, subprocess, sys, os, json
 from time import time, strftime
@@ -78,7 +79,7 @@ def batch_stream():
         data_loader.destroy(loader)
 
 model = Model().to(gpu)
-opt = torch.optim.Adam(model.parameters(), lr=INITIAL_LR)
+opt = torch.optim.Adam(model.parameters(), lr=INITIAL_LR, weight_decay=WEIGHT_DECAY)
 
 PRINT_ITERS = 100
 recent_losses = torch.zeros(PRINT_ITERS).to(gpu)
