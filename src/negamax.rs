@@ -31,6 +31,11 @@ impl Search<'_> {
             _ => {}
         }
 
+        let depth = match tt.is_some() {
+            false if depth > 3 => depth - 1,
+            _ => depth,
+        };
+
         let static_eval = self.data.accumulator.infer(pos);
 
         let eval = tt.map_or(static_eval, |tt| tt.score);
