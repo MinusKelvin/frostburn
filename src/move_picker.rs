@@ -1,3 +1,4 @@
+use arrayvec::ArrayVec;
 use cozy_chess::{Board, Move};
 
 use crate::LocalData;
@@ -13,12 +14,19 @@ pub struct MovePicker<'a> {
 impl<'a> MovePicker<'a> {
     pub fn new(board: &'a Board, data: &LocalData, tt_mv: Option<Move>, skip_quiets: bool) -> Self {
         let mut moves = Vec::with_capacity(64);
-        let mut has_moves = false;
 
-        board.generate_moves(|mut mvs| {
-            has_moves = true;
+        let mut piece_moves = ArrayVec::<_, 32>::new();
+
+        board.generate_moves(|mvs| {
+            piece_moves.push(mvs);
+            false
+        });
+
+        let opp = board.colors(!board.side_to_move());
+
+        for &(mut mvs) in &piece_moves {
             if skip_quiets {
-                mvs.to &= board.colors(!board.side_to_move());
+                mvs.to &= opp;
             }
             for mv in mvs {
                 let score = if tt_mv.is_some_and(|tt_mv| mv == tt_mv) {
@@ -30,15 +38,14 @@ impl<'a> MovePicker<'a> {
                 };
                 moves.push((mv, score));
             }
-            false
-        });
+        }
 
         MovePicker {
             _skip_quiets: skip_quiets,
             _board: board,
             moves,
             next_idx: 0,
-            has_moves
+            has_moves: !piece_moves.is_empty(),
         }
     }
 
