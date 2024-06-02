@@ -22,6 +22,10 @@ impl Eval {
         Eval(30_000 - ply as i16)
     }
 
+    pub fn is_losing(self) -> bool {
+        self.0 < -MAX_NONMATE
+    }
+
     pub fn is_mate(self) -> bool {
         self.0 < -MAX_NONMATE || self.0 > MAX_NONMATE
     }
