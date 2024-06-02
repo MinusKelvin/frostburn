@@ -83,11 +83,13 @@ impl Search<'_> {
             self.data.pv_table[ply + 1].clear();
             self.data.prev_moves[ply] = Some((mv, piece));
 
+            let new_depth = depth - 1 + (!new_pos.checkers().is_empty() as i16);
+
             let mut score;
             if ply != 0 && self.history.contains(&new_pos.hash()) {
                 score = Eval::cp(0);
             } else if PV && i == 0 {
-                score = self.search_opp::<true>(&new_pos, alpha, beta, depth - 1, ply + 1)?;
+                score = self.search_opp::<true>(&new_pos, alpha, beta, new_depth, ply + 1)?;
             } else {
                 let base_r = self.shared.log(i) * self.shared.log(depth as usize) / 1.5 + 0.25;
                 let mut r = base_r as i16;
@@ -97,15 +99,15 @@ impl Search<'_> {
                 }
 
                 score =
-                    self.search_opp::<false>(&new_pos, alpha, alpha + 1, depth - r - 1, ply + 1)?;
+                    self.search_opp::<false>(&new_pos, alpha, alpha + 1, new_depth - r, ply + 1)?;
 
                 if r > 0 && score > alpha {
                     score =
-                        self.search_opp::<false>(&new_pos, alpha, alpha + 1, depth - 1, ply + 1)?;
+                        self.search_opp::<false>(&new_pos, alpha, alpha + 1, new_depth, ply + 1)?;
                 }
 
                 if PV && score > alpha {
-                    score = self.search_opp::<true>(&new_pos, alpha, beta, depth - 1, ply + 1)?;
+                    score = self.search_opp::<true>(&new_pos, alpha, beta, new_depth, ply + 1)?;
                 }
             }
 
