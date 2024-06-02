@@ -47,7 +47,7 @@ impl Search<'_> {
                 return Some(score);
             }
         }
-        
+
         let orig_alpha = alpha;
         let mut best_mv = None;
         let mut best_score = Eval::mated(0);
@@ -94,10 +94,12 @@ impl Search<'_> {
                 best_mv = Some(mv);
                 best_score = score;
 
-                let [pv, cont] = self.data.pv_table[ply..].first_chunk_mut().unwrap();
-                pv.clear();
-                pv.push(mv);
-                pv.try_extend_from_slice(&cont).unwrap();
+                if PV {
+                    let [pv, cont] = self.data.pv_table[ply..].first_chunk_mut().unwrap();
+                    pv.clear();
+                    pv.push(mv);
+                    pv.try_extend_from_slice(&cont).unwrap();
+                }
             }
 
             if score > alpha {
