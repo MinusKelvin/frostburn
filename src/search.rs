@@ -23,6 +23,13 @@ impl Search<'_> {
         self.data.history.decay();
         self.data.counter_hist.decay();
 
+        // calculate hard time limit if playing on clock
+        if let Some(clock) = self.limits.clock {
+            self.limits.move_time = Some(clock / 2);
+        }
+
+        let soft_time_limit = self.limits.clock.map(|clock| clock / 30);
+
         for new_depth in 1.. {
             let result = self.negamax::<true>(self.root, Eval::mated(0), Eval::mating(0), new_depth, 0);
             self.data.on_first_depth = false;
@@ -35,9 +42,12 @@ impl Search<'_> {
             let mut finished = result.is_none() || self.count_node_and_check_abort(true).is_none();
             let nodes = self.shared.nodes.load(Ordering::SeqCst);
 
+            let time = (self.clock)();
+
             if depth == MAX_DEPTH
                 || self.limits.depth.is_some_and(|d| d == depth)
                 || self.limits.min_nodes.is_some_and(|n| nodes >= n)
+                || soft_time_limit.is_some_and(|c| time >= c)
             {
                 self.shared.abort.store(true, Ordering::SeqCst);
                 finished = true;
@@ -47,7 +57,7 @@ impl Search<'_> {
                 depth,
                 score,
                 nodes,
-                time: (self.clock)(),
+                time,
                 pv: &pv,
                 finished,
             };

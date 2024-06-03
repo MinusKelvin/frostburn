@@ -172,8 +172,8 @@ impl UciHandler {
                 "depth" => limits.depth = Some(number(0) as i16),
                 "nodes" => limits.nodes = Some(number(0)),
                 "minnodes" => limits.min_nodes = Some(number(0)),
-                "wtime" if white => limits.move_time = Some(Duration::from_millis(number(0)) / 40),
-                "btime" if !white => limits.move_time = Some(Duration::from_millis(number(0)) / 40),
+                "wtime" if white => limits.clock = Some(Duration::from_millis(number(0))),
+                "btime" if !white => limits.clock = Some(Duration::from_millis(number(0))),
                 _ => {}
             }
         }
