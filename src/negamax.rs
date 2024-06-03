@@ -93,6 +93,7 @@ impl Search<'_> {
                 let mut r = base_r as i16;
 
                 r -= (mv_score / 4096) as i16;
+                r -= PV as i16;
 
                 if r < 0 || pos.colors(!pos.side_to_move()).has(mv.to) {
                     r = 0;
