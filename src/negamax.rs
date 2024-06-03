@@ -171,12 +171,12 @@ impl Search<'_> {
             TtEntry {
                 lower_hash_bits: 0,
                 mv: match bound {
-                    Bound::UPPER => tt_mv.unwrap_or(Move {
+                    Bound::UPPER => Move {
                         from: Square::A1,
                         to: Square::A1,
                         promotion: None,
-                    }),
-                    _ => best_mv.into(),
+                    },
+                    _ => best_mv,
                 }
                 .into(),
                 score: best_score,
