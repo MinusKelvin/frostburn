@@ -1,4 +1,4 @@
-use cozy_chess::{Board, Move, Square};
+use cozy_chess::{Board, Move, Piece, Square};
 
 use crate::move_picker::MovePicker;
 use crate::tt::{Bound, TtEntry};
@@ -128,7 +128,8 @@ impl Search<'_> {
             }
 
             if score > beta {
-                if !pos.colors(!pos.side_to_move()).has(mv.to) {
+                if !pos.colors(!pos.side_to_move()).has(mv.to) && mv.promotion != Some(Piece::Queen)
+                {
                     let mut counter_hist = self.data.counter_hist.get_mut(counter_prior);
                     let mut followup_hist = self.data.followup_hist.get_mut(followup_prior);
 
@@ -141,7 +142,9 @@ impl Search<'_> {
                     }
 
                     for failure in move_picker.failed() {
-                        if !pos.colors(!pos.side_to_move()).has(failure.to) {
+                        if !pos.colors(!pos.side_to_move()).has(failure.to)
+                            && failure.promotion != Some(Piece::Queen)
+                        {
                             self.data.history.update(pos, failure, -64 * depth);
                             if let Some(counter_hist) = counter_hist.as_deref_mut() {
                                 counter_hist.update(pos, failure, -64 * depth);

@@ -1,5 +1,5 @@
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, Move};
+use cozy_chess::{Board, Move, Piece};
 
 use crate::history::PieceHistory;
 use crate::LocalData;
@@ -41,6 +41,8 @@ impl<'a> MovePicker<'a> {
                     1_000_000
                 } else if board.colors(!board.side_to_move()).has(mv.to) {
                     100_000 + board.piece_on(mv.to).unwrap() as i32
+                } else if mv.promotion == Some(Piece::Queen) {
+                    100_000
                 } else {
                     data.history.get(board, mv) as i32
                         + counter_hist.map_or(0, |table| table.get(board, mv) as i32)
