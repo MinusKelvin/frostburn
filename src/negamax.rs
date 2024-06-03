@@ -92,6 +92,8 @@ impl Search<'_> {
                 let base_r = self.shared.log(i) * self.shared.log(depth as usize) / 1.5 + 0.25;
                 let mut r = base_r as i16;
 
+                r -= !new_pos.checkers().is_empty() as i16;
+
                 if r < 0 || pos.colors(!pos.side_to_move()).has(mv.to) {
                     r = 0;
                 }
