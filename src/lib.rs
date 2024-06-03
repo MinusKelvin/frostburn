@@ -6,8 +6,8 @@ use core::time::Duration;
 
 use alloc::vec::Vec;
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, Color, Move, Piece};
-use history::{CounterHistory, PieceHistory};
+use cozy_chess::{Board, Move, Piece};
+use history::{ContinuationHistory, PieceHistory};
 use tt::TranspositionTable;
 
 mod eval;
@@ -31,7 +31,8 @@ pub struct LocalData {
     local_nodes: u64,
     accumulator: Accumulator,
     history: PieceHistory,
-    counter_hist: CounterHistory,
+    counter_hist: ContinuationHistory,
+    followup_hist: ContinuationHistory,
     prev_moves: [Option<(Move, Piece)>; MAX_PLY],
 }
 
@@ -114,7 +115,8 @@ impl LocalData {
             local_nodes: 0,
             accumulator: Accumulator::new(),
             history: PieceHistory::new(),
-            counter_hist: CounterHistory::new(),
+            counter_hist: ContinuationHistory::new(),
+            followup_hist: ContinuationHistory::new(),
             prev_moves: [None; MAX_PLY],
         }
     }

@@ -1,4 +1,3 @@
-use arrayvec::ArrayVec;
 use cozy_chess::{Board, Move, Square};
 
 use crate::move_picker::MovePicker;
@@ -56,6 +55,7 @@ impl Search<'_> {
         }
 
         let counter_prior = (ply > 0).then(|| self.data.prev_moves[ply - 1]).flatten();
+        let followup_prior = (ply > 1).then(|| self.data.prev_moves[ply - 2]).flatten();
 
         let orig_alpha = alpha;
         let mut best_mv = None;
@@ -66,6 +66,7 @@ impl Search<'_> {
             tt_mv,
             false,
             self.data.counter_hist.get(counter_prior),
+            self.data.followup_hist.get(followup_prior),
         );
 
         self.history.push(pos.hash());
@@ -127,10 +128,14 @@ impl Search<'_> {
             if score > beta {
                 if !pos.colors(!pos.side_to_move()).has(mv.to) {
                     let mut counter_hist = self.data.counter_hist.get_mut(counter_prior);
+                    let mut followup_hist = self.data.followup_hist.get_mut(followup_prior);
 
                     self.data.history.update(pos, mv, 64 * depth);
                     if let Some(counter_hist) = counter_hist.as_deref_mut() {
                         counter_hist.update(pos, mv, 64 * depth);
+                    }
+                    if let Some(followup_hist) = followup_hist.as_deref_mut() {
+                        followup_hist.update(pos, mv, 64 * depth);
                     }
 
                     for failure in move_picker.failed() {
@@ -138,6 +143,9 @@ impl Search<'_> {
                             self.data.history.update(pos, failure, -64 * depth);
                             if let Some(counter_hist) = counter_hist.as_deref_mut() {
                                 counter_hist.update(pos, failure, -64 * depth);
+                            }
+                            if let Some(followup_hist) = followup_hist.as_deref_mut() {
+                                followup_hist.update(pos, failure, -64 * depth);
                             }
                         }
                     }

@@ -19,6 +19,7 @@ impl<'a> MovePicker<'a> {
         tt_mv: Option<Move>,
         skip_quiets: bool,
         counter_hist: Option<&PieceHistory>,
+        followup_hist: Option<&PieceHistory>,
     ) -> Self {
         let mut moves = Vec::with_capacity(64);
 
@@ -43,6 +44,7 @@ impl<'a> MovePicker<'a> {
                 } else {
                     data.history.get(board, mv) as i32
                         + counter_hist.map_or(0, |table| table.get(board, mv) as i32)
+                        + followup_hist.map_or(0, |table| table.get(board, mv) as i32)
                 };
                 moves.push((mv, score));
             }

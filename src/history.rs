@@ -30,13 +30,13 @@ impl PieceHistory {
     }
 }
 
-pub struct CounterHistory {
+pub struct ContinuationHistory {
     table: Box<P<Sq<PieceHistory>>>,
 }
 
-impl CounterHistory {
+impl ContinuationHistory {
     pub fn new() -> Self {
-        CounterHistory {
+        ContinuationHistory {
             table: bytemuck::zeroed_box(),
         }
     }
