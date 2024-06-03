@@ -1,3 +1,4 @@
+use arrayvec::ArrayVec;
 use cozy_chess::{Board, Move, Square};
 
 use crate::move_picker::MovePicker;
@@ -47,20 +48,31 @@ impl Search<'_> {
         if !PV && pos.checkers().is_empty() && eval >= beta {
             let new_pos = pos.null_move().unwrap();
             let r = depth / 3 + 2 + (eval - beta) / 150;
+            self.data.prev_moves[ply] = None;
             let score = self.search_opp::<false>(&new_pos, beta - 1, beta, depth - r, ply + 1)?;
             if score >= beta {
                 return Some(score);
             }
         }
 
+        let counter_prior = (ply > 0).then(|| self.data.prev_moves[ply - 1]).flatten();
+
         let orig_alpha = alpha;
         let mut best_mv = None;
         let mut best_score = Eval::mated(0);
-        let mut move_picker = MovePicker::new(pos, &self.data, tt_mv, false);
+        let mut move_picker = MovePicker::new(
+            pos,
+            &self.data,
+            tt_mv,
+            false,
+            self.data.counter_hist.get(counter_prior),
+        );
 
         self.history.push(pos.hash());
 
         while let Some((i, mv, mv_score)) = move_picker.next(&self.data) {
+            let piece = pos.piece_on(mv.from).unwrap();
+
             if !PV && mv_score < 100_000 && i > depth as usize * depth as usize + 4 {
                 continue;
             }
@@ -68,6 +80,7 @@ impl Search<'_> {
             let mut new_pos = pos.clone();
             new_pos.play_unchecked(mv);
             self.data.pv_table[ply + 1].clear();
+            self.data.prev_moves[ply] = Some((mv, piece));
 
             let mut score;
             if ply != 0 && self.history.contains(&new_pos.hash()) {
@@ -113,10 +126,19 @@ impl Search<'_> {
 
             if score > beta {
                 if !pos.colors(!pos.side_to_move()).has(mv.to) {
+                    let mut counter_hist = self.data.counter_hist.get_mut(counter_prior);
+
                     self.data.history.update(pos, mv, 64 * depth);
+                    if let Some(counter_hist) = counter_hist.as_deref_mut() {
+                        counter_hist.update(pos, mv, 64 * depth);
+                    }
+
                     for failure in move_picker.failed() {
                         if !pos.colors(!pos.side_to_move()).has(failure.to) {
                             self.data.history.update(pos, failure, -64 * depth);
+                            if let Some(counter_hist) = counter_hist.as_deref_mut() {
+                                counter_hist.update(pos, failure, -64 * depth);
+                            }
                         }
                     }
                 }

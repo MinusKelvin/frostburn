@@ -1,6 +1,7 @@
 use arrayvec::ArrayVec;
 use cozy_chess::{Board, Move};
 
+use crate::history::PieceHistory;
 use crate::LocalData;
 
 pub struct MovePicker<'a> {
@@ -12,7 +13,13 @@ pub struct MovePicker<'a> {
 }
 
 impl<'a> MovePicker<'a> {
-    pub fn new(board: &'a Board, data: &LocalData, tt_mv: Option<Move>, skip_quiets: bool) -> Self {
+    pub fn new(
+        board: &'a Board,
+        data: &LocalData,
+        tt_mv: Option<Move>,
+        skip_quiets: bool,
+        counter_hist: Option<&PieceHistory>,
+    ) -> Self {
         let mut moves = Vec::with_capacity(64);
 
         let mut piece_moves = ArrayVec::<_, 32>::new();
@@ -35,6 +42,7 @@ impl<'a> MovePicker<'a> {
                     100_000 + board.piece_on(mv.to).unwrap() as i32
                 } else {
                     data.history.get(board, mv) as i32
+                        + counter_hist.map_or(0, |table| table.get(board, mv) as i32)
                 };
                 moves.push((mv, score));
             }

@@ -6,21 +6,21 @@ use core::time::Duration;
 
 use alloc::vec::Vec;
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, Move};
-use history::PieceHistory;
+use cozy_chess::{Board, Color, Move, Piece};
+use history::{CounterHistory, PieceHistory};
 use tt::TranspositionTable;
 
+mod eval;
+mod history;
+mod move_picker;
 mod negamax;
 mod nnue;
 mod qsearch;
 mod search;
 mod tt;
-mod history;
-mod eval;
-mod move_picker;
 
-pub use crate::nnue::Accumulator;
 pub use crate::eval::Eval;
+pub use crate::nnue::Accumulator;
 
 const MAX_PLY: usize = 256;
 const MAX_DEPTH: i16 = 120;
@@ -31,6 +31,8 @@ pub struct LocalData {
     local_nodes: u64,
     accumulator: Accumulator,
     history: PieceHistory,
+    counter_hist: CounterHistory,
+    prev_moves: [Option<(Move, Piece)>; MAX_PLY],
 }
 
 pub struct SharedData {
@@ -112,6 +114,8 @@ impl LocalData {
             local_nodes: 0,
             accumulator: Accumulator::new(),
             history: PieceHistory::new(),
+            counter_hist: CounterHistory::new(),
+            prev_moves: [None; MAX_PLY],
         }
     }
 }
