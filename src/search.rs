@@ -20,6 +20,9 @@ impl Search<'_> {
             .filter_map(|s| (s[0] == s[1]).then_some(s[0]))
             .collect();
 
+        self.data.history.decay();
+        self.data.counter_hist.decay();
+
         for new_depth in 1.. {
             let result = self.negamax::<true>(self.root, Eval::mated(0), Eval::mating(0), new_depth, 0);
             self.data.on_first_depth = false;

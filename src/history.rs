@@ -5,7 +5,8 @@ use cozy_chess::{Board, Color, Move, Piece, Square};
 
 const MAX_HISTORY: i32 = 1 << 14;
 
-#[derive(Zeroable)]
+#[derive(Zeroable, Pod, Clone, Copy)]
+#[repr(transparent)]
 pub struct PieceHistory {
     table: C<P<Sq<i16>>>,
 }
@@ -28,6 +29,13 @@ impl PieceHistory {
 
         *slot += bonus - (bonus.abs() as i32 * *slot as i32 / MAX_HISTORY) as i16;
     }
+
+    pub fn decay(&mut self) {
+        let data: &mut [i16] = bytemuck::cast_slice_mut(std::slice::from_mut(self));
+        for v in data {
+            *v >>= 1;
+        }
+    }
 }
 
 pub struct ContinuationHistory {
@@ -47,6 +55,14 @@ impl ContinuationHistory {
 
     pub fn get_mut(&mut self, prior: Option<(Move, Piece)>) -> Option<&mut PieceHistory> {
         prior.map(|(mv, piece)| &mut self.table[piece][mv.to])
+    }
+
+    pub fn decay(&mut self) {
+        let tables: &mut [PieceHistory] =
+            bytemuck::cast_slice_mut(std::slice::from_mut(&mut *self.table));
+        for table in tables {
+            table.decay();
+        }
     }
 }
 
