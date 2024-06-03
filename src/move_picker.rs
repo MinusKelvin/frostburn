@@ -1,5 +1,5 @@
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, Move};
+use cozy_chess::{Board, Move, Piece};
 
 use crate::history::PieceHistory;
 use crate::LocalData;
@@ -37,15 +37,21 @@ impl<'a> MovePicker<'a> {
                 mvs.to &= opp;
             }
             for mv in mvs {
-                let score = if tt_mv.is_some_and(|tt_mv| mv == tt_mv) {
-                    1_000_000
-                } else if board.colors(!board.side_to_move()).has(mv.to) {
-                    100_000 + board.piece_on(mv.to).unwrap() as i32
-                } else {
-                    data.history.get(board, mv) as i32
-                        + counter_hist.map_or(0, |table| table.get(board, mv) as i32)
-                        + followup_hist.map_or(0, |table| table.get(board, mv) as i32)
+                let mut score = match tt_mv {
+                    Some(tt_mv) if mv == tt_mv => 1_000_000,
+                    _ if opp.has(mv.to) => 100_000 + board.piece_on(mv.to).unwrap() as i32,
+                    _ => {
+                        data.history.get(board, mv) as i32
+                            + counter_hist.map_or(0, |table| table.get(board, mv) as i32)
+                            + followup_hist.map_or(0, |table| table.get(board, mv) as i32)
+                    }
                 };
+                match mv.promotion {
+                    Some(Piece::Knight) => score -= 400_000,
+                    Some(Piece::Rook) => score -= 500_000,
+                    Some(Piece::Bishop) => score -= 600_000,
+                    _ => {}
+                }
                 moves.push((mv, score));
             }
         }
