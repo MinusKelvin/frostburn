@@ -146,6 +146,10 @@ impl SharedData {
         self.abort.store(true, Ordering::SeqCst);
     }
 
+    pub fn clear_tt(&mut self) {
+        bytemuck::fill_zeroes(self.tt.raw());
+    }
+
     fn log(&self, i: usize) -> f32 {
         self.log_table[i.min(self.log_table.len() - 1)]
     }

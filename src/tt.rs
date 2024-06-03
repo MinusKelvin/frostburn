@@ -49,6 +49,10 @@ impl TranspositionTable {
             .store(bytemuck::cast(entry), Ordering::Relaxed);
     }
 
+    pub fn raw(&mut self) -> &mut [AtomicU64] {
+        &mut self.table
+    }
+
     fn slot(&self, hash: u64) -> &AtomicU64 {
         &self.table[(hash as u128 * self.table.len() as u128 >> 64) as u64 as usize]
     }

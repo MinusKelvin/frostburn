@@ -135,6 +135,7 @@ impl UciHandler {
 
     fn new_game(&mut self, _: &mut TokenIter) {
         self.local_data = Arc::new(Mutex::new(LocalData::new()));
+        self.shared_data.write().unwrap().clear_tt();
     }
 
     fn stop(&mut self, _: &mut TokenIter) {
