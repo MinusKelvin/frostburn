@@ -69,7 +69,7 @@ impl Search<'_> {
             self.data.followup_hist.get(followup_prior),
         );
 
-        self.history.push(pos.hash());
+        self.data.rep_table.push(pos.hash());
 
         while let Some((i, mv, mv_score)) = move_picker.next(&self.data) {
             let piece = pos.piece_on(mv.from).unwrap();
@@ -84,7 +84,7 @@ impl Search<'_> {
             self.data.prev_moves[ply] = Some((mv, piece));
 
             let mut score;
-            if ply != 0 && self.history.contains(&new_pos.hash()) {
+            if ply != 0 && self.data.rep_table.is_rep(&new_pos) {
                 score = Eval::cp(0);
             } else if PV && i == 0 {
                 score = self.search_opp::<true>(&new_pos, alpha, beta, depth - 1, ply + 1)?;
@@ -154,7 +154,7 @@ impl Search<'_> {
             }
         }
 
-        self.history.pop();
+        self.data.rep_table.pop();
 
         let Some(best_mv) = best_mv else {
             if pos.checkers().is_empty() {

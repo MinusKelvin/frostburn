@@ -8,6 +8,7 @@ use alloc::vec::Vec;
 use arrayvec::ArrayVec;
 use cozy_chess::{Board, Move, Piece};
 use history::{ContinuationHistory, PieceHistory};
+use rep_table::RepetitionTable;
 use tt::TranspositionTable;
 
 mod eval;
@@ -18,6 +19,7 @@ mod nnue;
 mod qsearch;
 mod search;
 mod tt;
+mod rep_table;
 
 pub use crate::eval::Eval;
 pub use crate::nnue::Accumulator;
@@ -34,6 +36,7 @@ pub struct LocalData {
     counter_hist: ContinuationHistory,
     followup_hist: ContinuationHistory,
     prev_moves: [Option<(Move, Piece)>; MAX_PLY],
+    rep_table: RepetitionTable,
 }
 
 pub struct SharedData {
@@ -119,6 +122,7 @@ impl LocalData {
             counter_hist: ContinuationHistory::new(),
             followup_hist: ContinuationHistory::new(),
             prev_moves: [None; MAX_PLY],
+            rep_table: RepetitionTable::new(),
         }
     }
 }

@@ -12,13 +12,14 @@ impl Search<'_> {
         self.data.on_first_depth = true;
 
         // simplify history so we can detect 2-fold
+        self.data.rep_table.clear();
         let start =
             self.history.len() - (self.root.halfmove_clock() as usize).min(self.history.len());
         self.history[start..].sort_unstable();
-        self.history = self.history[start..]
+        self.history[start..]
             .windows(2)
             .filter_map(|s| (s[0] == s[1]).then_some(s[0]))
-            .collect();
+            .for_each(|hash| self.data.rep_table.push(hash));
 
         self.data.history.decay();
         self.data.counter_hist.decay();
@@ -31,7 +32,8 @@ impl Search<'_> {
         let soft_time_limit = self.limits.clock.map(|clock| clock / 30);
 
         for new_depth in 1.. {
-            let result = self.negamax::<true>(self.root, Eval::mated(0), Eval::mating(0), new_depth, 0);
+            let result =
+                self.negamax::<true>(self.root, Eval::mated(0), Eval::mating(0), new_depth, 0);
             self.data.on_first_depth = false;
             if let Some(new_score) = result {
                 score = new_score;
