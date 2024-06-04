@@ -30,8 +30,26 @@ impl Search<'_> {
 
         let soft_time_limit = self.limits.clock.map(|clock| clock / 30);
 
+        let prev = Eval::cp(0);
+
         for new_depth in 1.. {
-            let result = self.negamax::<true>(self.root, Eval::mated(0), Eval::mating(0), new_depth, 0);
+            let (mut lower, mut upper) = match new_depth {
+                1 => (Eval::mated(0), Eval::mating(0)),
+                _ => (prev - 30, prev + 30),
+            };
+
+            let mut result;
+            loop {
+                result = self.negamax::<true>(self.root, lower, upper, new_depth, 0);
+
+                if result.map_or(true, |score| lower < score && score < upper) {
+                    break;
+                }
+
+                lower = Eval::mated(0);
+                upper = Eval::mating(0);
+            }
+
             self.data.on_first_depth = false;
             if let Some(new_score) = result {
                 score = new_score;
