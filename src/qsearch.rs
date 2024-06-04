@@ -24,7 +24,10 @@ impl Search<'_> {
             _ => {}
         }
 
-        let stand_pat = self.data.accumulator.infer(pos);
+        let stand_pat = match pos.checkers().is_empty() {
+            true => self.data.accumulator.infer(pos),
+            false => Eval::mated(ply),
+        };
 
         let orig_alpha = alpha;
         let mut best_mv = None;
@@ -38,7 +41,8 @@ impl Search<'_> {
             alpha = stand_pat;
         }
 
-        let mut move_picker = MovePicker::new(pos, &self.data, tt_mv, true, None, None);
+        let mut move_picker =
+            MovePicker::new(pos, &self.data, tt_mv, pos.checkers().is_empty(), None, None);
 
         if !move_picker.has_moves() {
             if pos.checkers().is_empty() {
