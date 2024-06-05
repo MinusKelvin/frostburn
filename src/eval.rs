@@ -90,3 +90,20 @@ impl Sub<Eval> for Eval {
         self.0 - rhs.0
     }
 }
+
+impl Add<i32> for Eval {
+    type Output = Eval;
+
+    fn add(self, rhs: i32) -> Self::Output {
+        Eval((self.0 as i32 + rhs).clamp(-30_000, 30_000) as i16)
+    }
+}
+
+impl Sub<i32> for Eval {
+    type Output = Eval;
+
+    fn sub(self, rhs: i32) -> Self::Output {
+        Eval((self.0 as i32 - rhs).clamp(-30_000, 30_000) as i16)
+    }
+}
+
