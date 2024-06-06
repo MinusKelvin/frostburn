@@ -33,7 +33,7 @@ impl Search<'_> {
         for new_depth in 1.. {
             let (mut lower, mut upper) = match new_depth {
                 1 => (Eval::mated(0), Eval::mating(0)),
-                _ => (score - 30, score + 30),
+                _ => (score - 15, score + 15),
             };
 
             let mut result;
