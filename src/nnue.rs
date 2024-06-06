@@ -80,7 +80,12 @@ impl Accumulator {
             result += activated[i] as i32 * NETWORK.l1.w[i][0] as i32;
         }
 
-        Eval::cp((result / 128).clamp(-29_000, 29_000) as i16)
+        let mut eval = (result / 128).clamp(-29_000, 29_000);
+        if board.halfmove_clock() > 50 {
+            eval -= eval * (board.halfmove_clock() as i32 - 50) / 50;
+        }
+
+        Eval::cp(eval as i16)
     }
 }
 
