@@ -42,10 +42,15 @@ impl Search<'_> {
             loop {
                 result = self.negamax::<true>(self.root, lower, upper, new_depth, 0);
 
-                let Some(result) = result else { break; };
+                let Some(result) = result else {
+                    break;
+                };
 
                 match () {
-                    _ if result <= lower => lower = result - delta,
+                    _ if result <= lower => {
+                        upper = upper - (upper - lower) / 2;
+                        lower = result - delta
+                    }
                     _ if result >= upper => upper = result + delta,
                     _ => break,
                 }
