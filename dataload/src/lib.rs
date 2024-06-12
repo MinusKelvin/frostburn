@@ -12,7 +12,7 @@ fn filter(board: &Board, mv: Move, winner: Option<Color>) -> bool {
     if board.colors(!board.side_to_move()).has(mv.to) {
         return false;
     }
-    thread_rng().gen_bool(0.25)
+    thread_rng().gen_bool(0.1)
 }
 
 const BATCH_SIZE: usize = 1 << 14;

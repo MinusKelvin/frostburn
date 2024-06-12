@@ -17,7 +17,7 @@ compiling = subprocess.Popen(
 try:
     import torch
 except ImportError:
-    print("please install the appropriate version of torch 2.3.0")
+    print("please install the appropriate version of torch 2.3.0", file=sys.stderr)
     sys.exit(1)
 
 
@@ -42,7 +42,7 @@ class Model(torch.nn.Module):
 
 
 if compiling.wait() != 0:
-    print("failed to compile data loader")
+    print("failed to compile data loader", file=sys.stderr)
     sys.exit(1)
 
 data_loader = ctypes.cdll.LoadLibrary("target/release/libdataload.so")
@@ -107,12 +107,17 @@ for i, (stm, nstm, targets) in enumerate(batch_stream()):
 
     recent_losses[i % PRINT_ITERS] = loss
 
-    if (i + 1) % PRINT_ITERS == 0:
+    iter_num = i + 1
+    if iter_num % PRINT_ITERS == 0:
         print_loss = torch.mean(recent_losses).item()
-        print(f"\r{i+1:>8}/{ITERS}    {i * batch_size / (time() - start):>5.0f} pos/s    loss: {print_loss:.6f}   ", end="")
+        durr = time() - start
+        speed = iter_num * batch_size / durr
+        mins = int(durr) // 60
+        secs = int(durr) % 60
+        print(f"\r{iter_num:>8}/{ITERS}   {speed:>5.0f} pos/s   loss: {print_loss:.6f}   time: {mins:2}:{secs:02}    ", end="", file=sys.stderr)
         train_loss.append(print_loss)
 
-print()
+print(file=sys.stderr)
 
 os.makedirs("nets", exist_ok=True)
 with open(f"nets/{train_id}.json", "w") as f:
