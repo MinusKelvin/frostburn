@@ -43,10 +43,10 @@ macro_rules! params {
 }
 
 params! {
-    rfp_margin: 0..=200 = 50;
-    rfp_max_depth: 1..=10 = 4;
-    nmp_min_depth: 1..=10 = 1;
-    nmp_divisor: 1..=500 = 150;
-    nmp_depth: 0..=500 = 50;
-    nmp_constant: 0..=1000 = 300;
+    rfp_margin: 0..=200 = 60;
+    rfp_max_depth: 1..=10 = 6;
+    nmp_min_depth: 1..=10 = 2;
+    nmp_divisor: 1..=500 = 200;
+    nmp_depth: 0..=500 = 75;
+    nmp_constant: 0..=1000 = 485;
 }
