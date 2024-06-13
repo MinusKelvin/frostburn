@@ -76,10 +76,16 @@ impl Search<'_> {
 
         self.history.push(pos.hash());
 
+        let lmp_limit = ((depth as i32 * depth as i32 * lmp_a() as i32
+            + depth as i32 * lmp_b() as i32
+            + lmp_c() as i32)
+            / 16)
+            .max(0) as usize;
+
         while let Some((i, mv, mv_score)) = move_picker.next(&self.data) {
             let piece = pos.piece_on(mv.from).unwrap();
 
-            if !PV && mv_score < 100_000 && i > depth as usize * depth as usize + 4 {
+            if !PV && mv_score < 100_000 && i > lmp_limit {
                 continue;
             }
 
@@ -94,10 +100,14 @@ impl Search<'_> {
             } else if PV && i == 0 {
                 score = self.search_opp::<true>(&new_pos, alpha, beta, depth - 1, ply + 1)?;
             } else {
-                let base_r = self.shared.log(i) * self.shared.log(depth as usize) / 1.5 + 0.25;
+                let base_r = self.shared.log(i)
+                    * self.shared.log(depth as usize)
+                    * (lmr_factor() as f32 / 100.0)
+                    + (lmr_base() as f32 / 100.0);
                 let mut r = base_r as i16;
 
-                r -= (mv_score / 4096).clamp(-4, 4) as i16;
+                r -= ((mv_score / lmr_history() as i32) as i16)
+                    .clamp(-lmr_history_max(), lmr_history_max());
                 r -= PV as i16;
 
                 if r < 0 || pos.colors(!pos.side_to_move()).has(mv.to) {

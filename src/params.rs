@@ -49,4 +49,11 @@ params! {
     nmp_divisor: 1..=500 = 200;
     nmp_depth: 0..=500 = 75;
     nmp_constant: 0..=1000 = 485;
+    lmr_base: -150..=150 = 25;
+    lmr_factor: 0..=200 = 67;
+    lmr_history: 1..=32000 = 4096;
+    lmr_history_max: 1..=10 = 4;
+    lmp_a: -1024..=1024 = 16;
+    lmp_b: -1024..=1024 = 0;
+    lmp_c: -1024..=1024 = 64;
 }
