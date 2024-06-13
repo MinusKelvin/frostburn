@@ -3,6 +3,9 @@ name = "frostburn-uci"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+tunable = ["frostburn/tunable"]
+
 [dependencies]
 frostburn = { path = ".." }
 cozy-chess = "0.3.4"

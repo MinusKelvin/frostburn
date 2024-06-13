@@ -15,12 +15,16 @@ mod history;
 mod move_picker;
 mod negamax;
 mod nnue;
+mod params;
 mod qsearch;
 mod search;
 mod tt;
 
 pub use crate::eval::Eval;
 pub use crate::nnue::Accumulator;
+
+#[cfg(feature = "tunable")]
+pub use crate::params::{Tunable, TUNABLES};
 
 const MAX_PLY: usize = 256;
 const MAX_DEPTH: i16 = 120;

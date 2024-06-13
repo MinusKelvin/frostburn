@@ -38,6 +38,19 @@ fn main() {
                 .unwrap_or_else(|| err());
             reproduce::reproduce(side, mb);
         }
+        #[cfg(feature = "tunable")]
+        Some("spsa") => {
+            for tunable in frostburn::TUNABLES {
+                println!(
+                    "{}, int, {}, {}, {}, {}, 0.002",
+                    tunable.name,
+                    tunable.default,
+                    tunable.min,
+                    tunable.max,
+                    (tunable.default as f64 * 0.05).abs().max(0.1)
+                );
+            }
+        }
         Some(c) => {
             eprintln!("Unrecognized command: `{c}`");
             exit(1);
@@ -105,6 +118,13 @@ impl UciHandler {
         println!("id author {}", env!("CARGO_PKG_AUTHORS"));
         println!("option name UCI_Chess960 type check default false");
         println!("option name Hash type spin min 1 max 1048576 default 64");
+        #[cfg(feature = "tunable")]
+        for tunable in frostburn::TUNABLES {
+            println!(
+                "option name {} type spin min {} max {} default {}",
+                tunable.name, tunable.min, tunable.max, tunable.default
+            );
+        }
         println!("uciok");
     }
 
@@ -129,6 +149,15 @@ impl UciHandler {
             "Hash" => {
                 let mb = tokens.nth(1).unwrap().parse().unwrap();
                 *self.shared_data.write().unwrap() = SharedData::new(mb);
+            }
+            #[cfg(feature = "tunable")]
+            param => {
+                let v = tokens.nth(1).unwrap().parse().unwrap();
+                for tunable in frostburn::TUNABLES {
+                    if param == tunable.name {
+                        tunable.atomic.store(v, std::sync::atomic::Ordering::SeqCst);
+                    }
+                }
             }
             _ => {}
         }

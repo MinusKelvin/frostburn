@@ -1,6 +1,7 @@
 use cozy_chess::{Board, Move, Square};
 
 use crate::move_picker::MovePicker;
+use crate::params::*;
 use crate::tt::{Bound, TtEntry};
 use crate::{Eval, Search, MAX_PLY};
 
@@ -40,13 +41,17 @@ impl Search<'_> {
 
         let eval = tt.map_or(static_eval, |tt| tt.score);
 
-        if !PV && pos.checkers().is_empty() && depth < 5 && eval >= beta + 50 * depth {
+        if !PV
+            && pos.checkers().is_empty()
+            && depth <= rfp_max_depth()
+            && eval >= beta + rfp_margin() * depth
+        {
             return Some(eval);
         }
 
-        if !PV && pos.checkers().is_empty() && eval >= beta {
+        if !PV && pos.checkers().is_empty() && eval >= beta && depth >= nmp_min_depth() {
             let new_pos = pos.null_move().unwrap();
-            let r = depth / 3 + 2 + (eval - beta) / 150;
+            let r = (eval - beta + depth * nmp_depth() + nmp_constant()) / nmp_divisor();
             self.data.prev_moves[ply] = None;
             let score = self.search_opp::<false>(&new_pos, beta - 1, beta, depth - r, ply + 1)?;
             if score >= beta {
