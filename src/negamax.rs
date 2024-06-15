@@ -99,10 +99,14 @@ impl Search<'_> {
                 let base_r = self.shared.log(i) * self.shared.log(depth as usize) / 1.5 + 0.25;
                 let mut r = base_r as i16;
 
-                r -= (scored_mv.history / 4096).clamp(-4, 4) as i16;
+                if !quiet {
+                    r /= 2;
+                } else {
+                    r -= (scored_mv.history / 4096).clamp(-4, 4) as i16;
+                }
                 r -= PV as i16;
 
-                if r < 0 || !quiet {
+                if r < 0 {
                     r = 0;
                 }
 
