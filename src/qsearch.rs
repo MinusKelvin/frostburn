@@ -1,7 +1,4 @@
-use cozy_chess::{
-    get_bishop_moves, get_king_moves, get_knight_moves, get_pawn_attacks, get_rook_moves, BitBoard,
-    Board, Color, Move, Piece, Square,
-};
+use cozy_chess::Board;
 
 use crate::move_picker::MovePicker;
 use crate::tt::{Bound, TtEntry};
@@ -51,18 +48,18 @@ impl Search<'_> {
             }
         }
 
-        while let Some((_, mv, _)) = move_picker.next(&self.data) {
-            if see(pos, mv) < 0 {
+        while let Some((_, scored_mv)) = move_picker.next(&self.data) {
+            if scored_mv.see < 0 {
                 continue;
             }
 
             let mut new_pos = pos.clone();
-            new_pos.play_unchecked(mv);
+            new_pos.play_unchecked(scored_mv.mv);
 
             let score = -self.qsearch(&new_pos, -beta, -alpha, ply + 1)?;
 
             if score > best_score {
-                best_mv = Some(mv);
+                best_mv = Some(scored_mv.mv);
                 best_score = score;
             }
 
@@ -91,75 +88,4 @@ impl Search<'_> {
 
         Some(best_score)
     }
-}
-
-fn see(pos: &Board, mv: Move) -> i32 {
-    const VALUES: [i32; 6] = [100, 300, 325, 500, 900, 0];
-
-    fn see_impl(pos: &Board, occupied: BitBoard, sq: Square, stm: Color, piece: Piece) -> i32 {
-        let mut attacker = None;
-
-        if attacker.is_none() {
-            let pawns =
-                occupied & get_pawn_attacks(sq, !stm) & pos.colored_pieces(stm, Piece::Pawn);
-            attacker = pawns.next_square();
-        }
-
-        if attacker.is_none() {
-            let knights = occupied & get_knight_moves(sq) & pos.colored_pieces(stm, Piece::Knight);
-            attacker = knights.next_square();
-        }
-
-        if attacker.is_none() {
-            let bishops =
-                occupied & get_bishop_moves(sq, occupied) & pos.colored_pieces(stm, Piece::Bishop);
-            attacker = bishops.next_square();
-        }
-
-        if attacker.is_none() {
-            let rooks =
-                occupied & get_rook_moves(sq, occupied) & pos.colored_pieces(stm, Piece::Rook);
-            attacker = rooks.next_square();
-        }
-        if attacker.is_none() {
-            let queens = occupied
-                & (get_rook_moves(sq, occupied) | get_bishop_moves(sq, occupied))
-                & pos.colored_pieces(stm, Piece::Queen);
-            attacker = queens.next_square();
-        }
-
-        if attacker.is_none() {
-            let kings = occupied & get_king_moves(sq) & pos.colored_pieces(stm, Piece::King);
-            attacker = kings.next_square();
-        }
-
-        if let Some(atk) = attacker {
-            return 0.max(
-                VALUES[piece as usize]
-                    - see_impl(
-                        pos,
-                        occupied - atk.bitboard(),
-                        sq,
-                        !stm,
-                        pos.piece_on(atk).unwrap(),
-                    ),
-            );
-        }
-
-        0
-    }
-
-    let captured = pos
-        .piece_on(mv.to)
-        .map_or(0, |piece| VALUES[piece as usize]);
-    let occupied = pos.occupied() - mv.from.bitboard();
-
-    captured
-        - see_impl(
-            pos,
-            occupied,
-            mv.to,
-            !pos.side_to_move(),
-            pos.piece_on(mv.from).unwrap(),
-        )
 }

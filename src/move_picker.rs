@@ -1,5 +1,8 @@
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, Move, Piece};
+use cozy_chess::{
+    get_bishop_moves, get_king_moves, get_knight_moves, get_pawn_attacks, get_rook_moves, BitBoard,
+    Board, Color, Move, Piece, Square,
+};
 
 use crate::history::PieceHistory;
 use crate::LocalData;
@@ -8,8 +11,15 @@ pub struct MovePicker<'a> {
     _skip_quiets: bool,
     has_moves: bool,
     _board: &'a Board,
-    moves: Vec<(Move, i32)>,
+    moves: Vec<ScoredMove>,
     next_idx: usize,
+}
+
+pub struct ScoredMove {
+    pub mv: Move,
+    pub score: i32,
+    pub see: i32,
+    pub history: i32,
 }
 
 impl<'a> MovePicker<'a> {
@@ -37,13 +47,20 @@ impl<'a> MovePicker<'a> {
                 mvs.to &= opp;
             }
             for mv in mvs {
+                let mut see_score = 0;
+                let mut history = 0;
                 let mut score = match tt_mv {
                     Some(tt_mv) if mv == tt_mv => 1_000_000,
-                    _ if opp.has(mv.to) => 100_000 + board.piece_on(mv.to).unwrap() as i32,
+                    _ if opp.has(mv.to) => {
+                        see_score = see(board, mv);
+                        let base = see_score * 10 + board.piece_on(mv.to).unwrap() as i32;
+                        100_000 + base
+                    }
                     _ => {
-                        data.history.get(board, mv) as i32
+                        history = data.history.get(board, mv) as i32
                             + counter_hist.map_or(0, |table| table.get(board, mv) as i32)
-                            + followup_hist.map_or(0, |table| table.get(board, mv) as i32)
+                            + followup_hist.map_or(0, |table| table.get(board, mv) as i32);
+                        history
                     }
                 };
                 match mv.promotion {
@@ -52,7 +69,12 @@ impl<'a> MovePicker<'a> {
                     Some(Piece::Bishop) => score -= 600_000,
                     _ => {}
                 }
-                moves.push((mv, score));
+                moves.push(ScoredMove {
+                    mv,
+                    score,
+                    see: see_score,
+                    history,
+                });
             }
         }
 
@@ -65,7 +87,7 @@ impl<'a> MovePicker<'a> {
         }
     }
 
-    pub fn next(&mut self, _data: &LocalData) -> Option<(usize, Move, i32)> {
+    pub fn next(&mut self, _data: &LocalData) -> Option<(usize, &ScoredMove)> {
         if self.next_idx >= self.moves.len() {
             return None;
         }
@@ -75,21 +97,112 @@ impl<'a> MovePicker<'a> {
 
         let mut best = i;
         for j in i + 1..self.moves.len() {
-            if self.moves[j].1 > self.moves[best].1 {
+            if self.moves[j] > self.moves[best] {
                 best = j;
             }
         }
 
         self.moves.swap(i, best);
 
-        Some((i, self.moves[i].0, self.moves[i].1))
+        Some((i, &self.moves[i]))
     }
 
-    pub fn failed(&self) -> impl Iterator<Item = Move> + '_ {
-        self.moves[..self.next_idx - 1].iter().map(|&(mv, _)| mv)
+    pub fn failed(&self) -> impl Iterator<Item = &ScoredMove> + '_ {
+        self.moves[..self.next_idx - 1].iter()
     }
 
     pub fn has_moves(&self) -> bool {
         self.has_moves
     }
 }
+
+fn see(pos: &Board, mv: Move) -> i32 {
+    const VALUES: [i32; 6] = [10, 30, 33, 50, 90, 0];
+
+    fn see_impl(pos: &Board, occupied: BitBoard, sq: Square, stm: Color, piece: Piece) -> i32 {
+        let mut attacker = None;
+
+        if attacker.is_none() {
+            let pawns =
+                occupied & get_pawn_attacks(sq, !stm) & pos.colored_pieces(stm, Piece::Pawn);
+            attacker = pawns.next_square();
+        }
+
+        if attacker.is_none() {
+            let knights = occupied & get_knight_moves(sq) & pos.colored_pieces(stm, Piece::Knight);
+            attacker = knights.next_square();
+        }
+
+        if attacker.is_none() {
+            let bishops =
+                occupied & get_bishop_moves(sq, occupied) & pos.colored_pieces(stm, Piece::Bishop);
+            attacker = bishops.next_square();
+        }
+
+        if attacker.is_none() {
+            let rooks =
+                occupied & get_rook_moves(sq, occupied) & pos.colored_pieces(stm, Piece::Rook);
+            attacker = rooks.next_square();
+        }
+        if attacker.is_none() {
+            let queens = occupied
+                & (get_rook_moves(sq, occupied) | get_bishop_moves(sq, occupied))
+                & pos.colored_pieces(stm, Piece::Queen);
+            attacker = queens.next_square();
+        }
+
+        if attacker.is_none() {
+            let kings = occupied & get_king_moves(sq) & pos.colored_pieces(stm, Piece::King);
+            attacker = kings.next_square();
+        }
+
+        if let Some(atk) = attacker {
+            return 0.max(
+                VALUES[piece as usize]
+                    - see_impl(
+                        pos,
+                        occupied - atk.bitboard(),
+                        sq,
+                        !stm,
+                        pos.piece_on(atk).unwrap(),
+                    ),
+            );
+        }
+
+        0
+    }
+
+    let captured = pos
+        .piece_on(mv.to)
+        .map_or(0, |piece| VALUES[piece as usize]);
+    let occupied = pos.occupied() - mv.from.bitboard();
+
+    captured
+        - see_impl(
+            pos,
+            occupied,
+            mv.to,
+            !pos.side_to_move(),
+            pos.piece_on(mv.from).unwrap(),
+        )
+}
+
+impl Ord for ScoredMove {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.score.cmp(&other.score)
+    }
+}
+
+impl PartialOrd for ScoredMove {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for ScoredMove {
+    fn eq(&self, other: &Self) -> bool {
+        self.score == other.score
+    }
+}
+
+impl Eq for ScoredMove {}

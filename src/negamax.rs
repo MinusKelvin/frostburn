@@ -76,17 +76,19 @@ impl Search<'_> {
 
         self.history.push(pos.hash());
 
-        while let Some((i, mv, mv_score)) = move_picker.next(&self.data) {
-            let piece = pos.piece_on(mv.from).unwrap();
+        while let Some((i, scored_mv)) = move_picker.next(&self.data) {
+            let piece = pos.piece_on(scored_mv.mv.from).unwrap();
 
-            if !PV && mv_score < 100_000 && i > depth as usize * depth as usize + 4 {
+            let quiet = !pos.colors(!pos.side_to_move()).has(scored_mv.mv.to);
+
+            if !PV && quiet && i > depth as usize * depth as usize + 4 {
                 continue;
             }
 
             let mut new_pos = pos.clone();
-            new_pos.play_unchecked(mv);
+            new_pos.play_unchecked(scored_mv.mv);
             self.data.pv_table[ply + 1].clear();
-            self.data.prev_moves[ply] = Some((mv, piece));
+            self.data.prev_moves[ply] = Some((scored_mv.mv, piece));
 
             let mut score;
             if ply != 0 && self.history.contains(&new_pos.hash()) {
@@ -97,10 +99,10 @@ impl Search<'_> {
                 let base_r = self.shared.log(i) * self.shared.log(depth as usize) / 1.5 + 0.25;
                 let mut r = base_r as i16;
 
-                r -= (mv_score / 4096).clamp(-4, 4) as i16;
+                r -= (scored_mv.history / 4096).clamp(-4, 4) as i16;
                 r -= PV as i16;
 
-                if r < 0 || pos.colors(!pos.side_to_move()).has(mv.to) {
+                if r < 0 || !quiet {
                     r = 0;
                 }
 
@@ -118,13 +120,13 @@ impl Search<'_> {
             }
 
             if score > best_score {
-                best_mv = Some(mv);
+                best_mv = Some(scored_mv.mv);
                 best_score = score;
 
                 if PV {
                     let [pv, cont] = self.data.pv_table[ply..].first_chunk_mut().unwrap();
                     pv.clear();
-                    pv.push(mv);
+                    pv.push(scored_mv.mv);
                     pv.try_extend_from_slice(&cont).unwrap();
                 }
             }
@@ -134,19 +136,20 @@ impl Search<'_> {
             }
 
             if score > beta {
-                if !pos.colors(!pos.side_to_move()).has(mv.to) {
+                if quiet {
                     let mut counter_hist = self.data.counter_hist.get_mut(counter_prior);
                     let mut followup_hist = self.data.followup_hist.get_mut(followup_prior);
 
-                    self.data.history.update(pos, mv, 64 * depth);
+                    self.data.history.update(pos, scored_mv.mv, 64 * depth);
                     if let Some(counter_hist) = counter_hist.as_deref_mut() {
-                        counter_hist.update(pos, mv, 64 * depth);
+                        counter_hist.update(pos, scored_mv.mv, 64 * depth);
                     }
                     if let Some(followup_hist) = followup_hist.as_deref_mut() {
-                        followup_hist.update(pos, mv, 64 * depth);
+                        followup_hist.update(pos, scored_mv.mv, 64 * depth);
                     }
 
                     for failure in move_picker.failed() {
+                        let failure = failure.mv;
                         if !pos.colors(!pos.side_to_move()).has(failure.to) {
                             self.data.history.update(pos, failure, -64 * depth);
                             if let Some(counter_hist) = counter_hist.as_deref_mut() {
