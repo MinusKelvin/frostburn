@@ -22,6 +22,7 @@ impl Search<'_> {
 
         self.data.history.decay();
         self.data.counter_hist.decay();
+        self.data.followup_hist.decay();
 
         // calculate hard time limit if playing on clock
         if let Some(clock) = self.limits.clock {
