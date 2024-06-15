@@ -102,7 +102,7 @@ impl Search<'_> {
                 r -= (scored_mv.history / 4096).clamp(-4, 4) as i16;
                 r -= PV as i16;
 
-                if r < 0 || !quiet {
+                if r < 0 || !quiet && scored_mv.see >= 0 {
                     r = 0;
                 }
 
