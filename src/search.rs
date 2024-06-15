@@ -21,6 +21,7 @@ impl Search<'_> {
             .collect();
 
         self.data.history.decay();
+        self.data.capture_hist.decay();
         self.data.counter_hist.decay();
         self.data.followup_hist.decay();
 
