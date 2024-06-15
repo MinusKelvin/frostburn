@@ -38,6 +38,11 @@ impl Search<'_> {
         };
 
         let static_eval = self.data.accumulator.infer(pos);
+        self.data.prev_evals[ply] = pos.checkers().is_empty().then_some(static_eval);
+        let improving = ply > 1
+            && self.data.prev_evals[ply - 2]
+                .zip(self.data.prev_evals[ply])
+                .map_or(false, |(prev, now)| now > prev);
 
         let eval = tt.map_or(static_eval, |tt| tt.score);
 
@@ -76,12 +81,18 @@ impl Search<'_> {
 
         self.history.push(pos.hash());
 
+        let lmp_limit = depth as usize * depth as usize + 4;
+        let lmp_limit = match improving {
+            true => lmp_limit / 2,
+            false => lmp_limit,
+        };
+
         while let Some((i, scored_mv)) = move_picker.next(&self.data) {
             let piece = pos.piece_on(scored_mv.mv.from).unwrap();
 
             let quiet = !pos.colors(!pos.side_to_move()).has(scored_mv.mv.to);
 
-            if !PV && quiet && i > depth as usize * depth as usize + 4 {
+            if !PV && quiet && i > lmp_limit {
                 continue;
             }
 
