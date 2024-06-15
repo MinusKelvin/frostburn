@@ -53,7 +53,9 @@ impl<'a> MovePicker<'a> {
                     Some(tt_mv) if mv == tt_mv => 1_000_000,
                     _ if opp.has(mv.to) => {
                         see_score = see(board, mv);
-                        let base = see_score * 10 + board.piece_on(mv.to).unwrap() as i32;
+                        let base = data.capture_hist.get(board, mv) as i32
+                            + see_score * 20_000
+                            + board.piece_on(mv.to).unwrap() as i32;
                         if see_score < 0 {
                             -100_000 + base
                         } else {

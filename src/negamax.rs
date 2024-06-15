@@ -136,10 +136,10 @@ impl Search<'_> {
             }
 
             if score > beta {
-                if quiet {
-                    let mut counter_hist = self.data.counter_hist.get_mut(counter_prior);
-                    let mut followup_hist = self.data.followup_hist.get_mut(followup_prior);
+                let mut counter_hist = self.data.counter_hist.get_mut(counter_prior);
+                let mut followup_hist = self.data.followup_hist.get_mut(followup_prior);
 
+                if quiet {
                     self.data.history.update(pos, scored_mv.mv, 64 * depth);
                     if let Some(counter_hist) = counter_hist.as_deref_mut() {
                         counter_hist.update(pos, scored_mv.mv, 64 * depth);
@@ -147,10 +147,14 @@ impl Search<'_> {
                     if let Some(followup_hist) = followup_hist.as_deref_mut() {
                         followup_hist.update(pos, scored_mv.mv, 64 * depth);
                     }
+                } else {
+                    self.data.capture_hist.update(pos, scored_mv.mv, 64 * depth);
+                }
 
-                    for failure in move_picker.failed() {
-                        let failure = failure.mv;
-                        if !pos.colors(!pos.side_to_move()).has(failure.to) {
+                for failure in move_picker.failed() {
+                    let failure = failure.mv;
+                    if quiet == !pos.colors(!pos.side_to_move()).has(failure.to) {
+                        if quiet {
                             self.data.history.update(pos, failure, -64 * depth);
                             if let Some(counter_hist) = counter_hist.as_deref_mut() {
                                 counter_hist.update(pos, failure, -64 * depth);
@@ -158,6 +162,8 @@ impl Search<'_> {
                             if let Some(followup_hist) = followup_hist.as_deref_mut() {
                                 followup_hist.update(pos, failure, -64 * depth);
                             }
+                        } else {
+                            self.data.capture_hist.update(pos, failure, -64 * depth);
                         }
                     }
                 }
