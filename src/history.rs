@@ -38,6 +38,41 @@ impl PieceHistory {
     }
 }
 
+#[derive(Zeroable, Pod, Clone, Copy)]
+#[repr(transparent)]
+pub struct CaptureHistory {
+    table: C<P<P<Sq<i16>>>>,
+}
+
+impl CaptureHistory {
+    pub fn new() -> Self {
+        Zeroable::zeroed()
+    }
+
+    pub fn get(&self, board: &Board, mv: Move) -> i16 {
+        let color = board.side_to_move();
+        let piece = board.piece_on(mv.from).unwrap();
+        let victim = board.piece_on(mv.to).unwrap();
+        self.table[color][piece][victim][mv.to]
+    }
+
+    pub fn update(&mut self, board: &Board, mv: Move, bonus: i16) {
+        let color = board.side_to_move();
+        let piece = board.piece_on(mv.from).unwrap();
+        let victim = board.piece_on(mv.to).unwrap();
+        let slot = &mut self.table[color][piece][victim][mv.to];
+
+        *slot += bonus - (bonus.abs() as i32 * *slot as i32 / MAX_HISTORY) as i16;
+    }
+
+    pub fn decay(&mut self) {
+        let data: &mut [i16] = bytemuck::cast_slice_mut(std::slice::from_mut(self));
+        for v in data {
+            *v >>= 1;
+        }
+    }
+}
+
 pub struct ContinuationHistory {
     table: Box<P<Sq<PieceHistory>>>,
 }
