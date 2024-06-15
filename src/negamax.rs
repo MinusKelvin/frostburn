@@ -38,6 +38,11 @@ impl Search<'_> {
         };
 
         let static_eval = self.data.accumulator.infer(pos);
+        self.data.prev_evals[ply] = pos.checkers().is_empty().then_some(static_eval);
+        let improving = ply > 1
+            && self.data.prev_evals[ply - 2]
+                .zip(self.data.prev_evals[ply])
+                .map_or(false, |(prev, now)| now > prev);
 
         let eval = tt.map_or(static_eval, |tt| tt.score);
 
@@ -101,6 +106,7 @@ impl Search<'_> {
 
                 r -= (scored_mv.history / 4096).clamp(-4, 4) as i16;
                 r -= PV as i16;
+                r += !improving as i16;
 
                 if r < 0 || !quiet {
                     r = 0;
