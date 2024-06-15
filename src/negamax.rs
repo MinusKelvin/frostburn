@@ -96,13 +96,16 @@ impl Search<'_> {
             } else if PV && i == 0 {
                 score = self.search_opp::<true>(&new_pos, alpha, beta, depth - 1, ply + 1)?;
             } else {
-                let base_r = self.shared.log(i) * self.shared.log(depth as usize) / 1.5 + 0.25;
-                let mut r = base_r as i16;
+                let log_log = self.shared.log(i) * self.shared.log(depth as usize);
+                let mut r = match quiet {
+                    true => log_log / 1.5 + 0.25,
+                    false => log_log * 0.5 - 0.5,
+                } as i16;
 
                 r -= (scored_mv.history / 4096).clamp(-4, 4) as i16;
                 r -= PV as i16;
 
-                if r < 0 || !quiet {
+                if r < 0 {
                     r = 0;
                 }
 
