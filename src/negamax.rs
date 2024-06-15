@@ -38,13 +38,18 @@ impl Search<'_> {
         };
 
         let static_eval = self.data.accumulator.infer(pos);
+        self.data.prev_evals[ply] = pos.checkers().is_empty().then_some(static_eval);
+        let improving = ply > 1
+            && self.data.prev_evals[ply - 2]
+                .zip(self.data.prev_evals[ply])
+                .map_or(false, |(prev, now)| now > prev);
 
         let eval = tt.map_or(static_eval, |tt| tt.score);
 
         if !PV
             && pos.checkers().is_empty()
             && depth <= rfp_max_depth()
-            && eval >= beta + rfp_margin() * depth
+            && eval >= beta + rfp_margin() * (depth - improving as i16)
         {
             return Some(eval);
         }

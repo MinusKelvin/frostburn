@@ -38,6 +38,7 @@ pub struct LocalData {
     counter_hist: ContinuationHistory,
     followup_hist: ContinuationHistory,
     prev_moves: [Option<(Move, Piece)>; MAX_PLY],
+    prev_evals: [Option<Eval>; MAX_PLY],
 }
 
 pub struct SharedData {
@@ -123,6 +124,7 @@ impl LocalData {
             counter_hist: ContinuationHistory::new(),
             followup_hist: ContinuationHistory::new(),
             prev_moves: [None; MAX_PLY],
+            prev_evals: [None; MAX_PLY],
         }
     }
 }
