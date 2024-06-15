@@ -81,6 +81,10 @@ impl Search<'_> {
 
             let quiet = !pos.colors(!pos.side_to_move()).has(scored_mv.mv.to);
 
+            if !PV && scored_mv.see < -12 * depth as i32 {
+                continue;
+            }
+
             if !PV && quiet && i > depth as usize * depth as usize + 4 {
                 continue;
             }
