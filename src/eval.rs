@@ -26,6 +26,10 @@ impl Eval {
         self.0 < -MAX_NONMATE || self.0 > MAX_NONMATE
     }
 
+    pub fn losing(self) -> bool {
+        self.0 < -MAX_NONMATE
+    }
+
     pub fn sub_time(self, ply: usize) -> Eval {
         if self.0 < -MAX_NONMATE {
             Eval(self.0 - ply as i16)
@@ -106,4 +110,3 @@ impl Sub<i32> for Eval {
         Eval((self.0 as i32 - rhs).clamp(-30_000, 30_000) as i16)
     }
 }
-
