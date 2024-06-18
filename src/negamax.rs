@@ -55,7 +55,7 @@ impl Search<'_> {
             self.data.prev_moves[ply] = None;
             let score = self.search_opp::<false>(&new_pos, beta - 1, beta, depth - r, ply + 1)?;
             if score >= beta {
-                return Some(score);
+                return Some(beta);
             }
         }
 
