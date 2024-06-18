@@ -49,7 +49,12 @@ impl Search<'_> {
             return Some(eval);
         }
 
-        if !PV && pos.checkers().is_empty() && eval >= beta && depth >= nmp_min_depth() {
+        if !PV
+            && pos.checkers().is_empty()
+            && !beta.is_mate()
+            && eval >= beta
+            && depth >= nmp_min_depth()
+        {
             let new_pos = pos.null_move().unwrap();
             let r = (eval - beta + depth as i32 * nmp_depth() as i32 + nmp_constant() as i32)
                 / nmp_divisor() as i32;
