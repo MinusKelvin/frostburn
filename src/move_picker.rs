@@ -68,6 +68,7 @@ impl<'a> MovePicker<'a> {
                     }
                 };
                 match mv.promotion {
+                    Some(Piece::Queen) => score += 500_000,
                     Some(Piece::Knight) => score -= 400_000,
                     Some(Piece::Rook) => score -= 500_000,
                     Some(Piece::Bishop) => score -= 600_000,
