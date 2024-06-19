@@ -54,9 +54,9 @@ impl Eval {
 impl Display for Eval {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.0 < -MAX_NONMATE {
-            write!(f, "mate {}", -(self.0 + 30_000) / 2 + 1)
+            write!(f, "mate -{}", (self.0 + 30_000 + 1) / 2)
         } else if self.0 > MAX_NONMATE {
-            write!(f, "mate {}", (30_000 - self.0) / 2 + 1)
+            write!(f, "mate {}", (30_000 - self.0 + 1) / 2)
         } else {
             write!(f, "cp {}", self.0)
         }
