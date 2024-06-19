@@ -51,9 +51,11 @@ impl Search<'_> {
 
         if !PV && pos.checkers().is_empty() && eval >= beta && depth >= nmp_min_depth() {
             let new_pos = pos.null_move().unwrap();
-            let r = (eval - beta + depth * nmp_depth() + nmp_constant()) / nmp_divisor();
+            let r = (eval - beta + depth as i32 * nmp_depth() as i32 + nmp_constant() as i32)
+                / nmp_divisor() as i32;
             self.data.prev_moves[ply] = None;
-            let score = self.search_opp::<false>(&new_pos, beta - 1, beta, depth - r, ply + 1)?;
+            let score =
+                self.search_opp::<false>(&new_pos, beta - 1, beta, depth - r as i16, ply + 1)?;
             if score >= beta {
                 return Some(score);
             }
