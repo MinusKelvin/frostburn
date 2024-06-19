@@ -53,6 +53,11 @@ impl Search<'_> {
                 continue;
             }
 
+            const MARGINS: [i32; 6] = [150, 430, 460, 650, 1200, 0];
+            if stand_pat + MARGINS[pos.piece_on(scored_mv.mv.to).unwrap() as usize] <= alpha {
+                continue;
+            }
+
             let mut new_pos = pos.clone();
             new_pos.play_unchecked(scored_mv.mv);
 
