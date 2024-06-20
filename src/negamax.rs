@@ -37,7 +37,7 @@ impl Search<'_> {
             _ => depth,
         };
 
-        let static_eval = self.data.accumulator.infer(pos);
+        let static_eval = self.eval(pos);
 
         let eval = tt.map_or(static_eval, |tt| tt.score);
 

@@ -20,8 +20,8 @@ struct Options {
     games: u64,
     #[structopt(long, short, default_value = "5k", parse(try_from_str = human_parse))]
     nodes: u64,
-    #[structopt(long)]
-    opp_nodes: Option<u64>,
+    #[structopt(long, default_value = "0")]
+    opp_eval_noise: i16,
 }
 
 fn main() {
@@ -44,7 +44,9 @@ fn main() {
                 let game = play_game(
                     &mut shared,
                     options.nodes,
-                    options.opp_nodes.unwrap_or(options.nodes),
+                    options.nodes,
+                    0,
+                    options.opp_eval_noise,
                 );
 
                 let mut guard = writer.lock().unwrap();
@@ -94,14 +96,25 @@ fn main() {
     writer.into_inner().unwrap().finish().unwrap();
 }
 
-fn play_game(shared: &mut [SharedData; 2], a_nodes: u64, b_nodes: u64) -> Game {
+fn play_game(
+    shared: &mut [SharedData; 2],
+    a_nodes: u64,
+    b_nodes: u64,
+    a_randomize: i16,
+    b_randomize: i16,
+) -> Game {
     let (mut game, mut board) = pick_startpos();
 
     let mut limits = [Limits::default(); 2];
     limits[0].min_nodes = Some(a_nodes);
     limits[0].nodes = Some(100 * a_nodes);
+    limits[0].randomize_eval = a_randomize;
     limits[1].min_nodes = Some(b_nodes);
     limits[1].nodes = Some(100 * b_nodes);
+    limits[1].randomize_eval = b_randomize;
+
+    shared[0].seed = thread_rng().gen();
+    shared[1].seed = thread_rng().gen();
 
     let mut local = [LocalData::new(), LocalData::new()];
 

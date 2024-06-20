@@ -45,6 +45,7 @@ pub struct SharedData {
     nodes: AtomicU64,
     tt: TranspositionTable,
     log_table: [f32; 32],
+    pub seed: u64,
 }
 
 pub struct Search<'a> {
@@ -64,6 +65,7 @@ pub struct Limits {
     pub depth: Option<i16>,
     pub nodes: Option<u64>,
     pub min_nodes: Option<u64>,
+    pub randomize_eval: i16,
 }
 
 pub struct SearchInfo<'a> {
@@ -110,6 +112,18 @@ impl Search<'_> {
         }
         false
     }
+
+    fn eval(&mut self, board: &Board) -> Eval {
+        let base = self.data.accumulator.infer(board);
+        if self.limits.randomize_eval != 0 {
+            let hash = self.shared.seed ^ board.hash();
+            let range = self.limits.randomize_eval as u128 * 2 + 1;
+            let offset = ((range * hash as u128) >> 64) as i16 - self.limits.randomize_eval;
+            base + offset
+        } else {
+            base
+        }
+    }
 }
 
 impl LocalData {
@@ -137,6 +151,7 @@ impl SharedData {
             abort: AtomicBool::new(false),
             nodes: AtomicU64::new(0),
             tt: TranspositionTable::new(tt_mb),
+            seed: 0x6CA648710DB5F3AE,
             log_table,
         }
     }

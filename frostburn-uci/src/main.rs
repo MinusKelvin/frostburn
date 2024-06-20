@@ -93,6 +93,7 @@ struct UciHandler {
     local_data: Arc<Mutex<LocalData>>,
     shared_data: Arc<RwLock<SharedData>>,
     threads: Vec<JoinHandle<()>>,
+    randomize_eval: i16,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -110,6 +111,7 @@ impl UciHandler {
             local_data: Arc::new(Mutex::new(LocalData::new())),
             shared_data: Arc::new(RwLock::new(SharedData::new(64))),
             threads: vec![],
+            randomize_eval: 0,
         }
     }
 
@@ -118,6 +120,7 @@ impl UciHandler {
         println!("id author {}", env!("CARGO_PKG_AUTHORS"));
         println!("option name UCI_Chess960 type check default false");
         println!("option name Hash type spin min 1 max 1048576 default 64");
+        println!("option name Weaken_EvalNoise type spin min 0 max 10000 default 0");
         #[cfg(feature = "tunable")]
         for tunable in frostburn::TUNABLES {
             println!(
@@ -149,6 +152,9 @@ impl UciHandler {
             "Hash" => {
                 let mb = tokens.nth(1).unwrap().parse().unwrap();
                 *self.shared_data.write().unwrap() = SharedData::new(mb);
+            }
+            "Weaken_EvalNoise" => {
+                self.randomize_eval = tokens.nth(1).unwrap().parse().unwrap();
             }
             #[cfg(feature = "tunable")]
             param => {
@@ -212,6 +218,7 @@ impl UciHandler {
         let white = self.position.side_to_move() == Color::White;
 
         let mut limits = Limits::default();
+        limits.randomize_eval = self.randomize_eval;
 
         while let Some(limit_verb) = tokens.next() {
             let mut number = |if_negative: u64| {

@@ -24,7 +24,7 @@ impl Search<'_> {
             _ => {}
         }
 
-        let stand_pat = self.data.accumulator.infer(pos);
+        let stand_pat = self.eval(pos);
 
         let orig_alpha = alpha;
         let mut best_mv = None;
