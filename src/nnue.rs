@@ -6,8 +6,8 @@ use crate::Eval;
 #[derive(Clone)]
 pub struct Accumulator {
     enabled: [[BitBoard; 6]; 2],
-    white: [i16; 256],
-    black: [i16; 256],
+    white: [i16; 512],
+    black: [i16; 512],
 }
 
 #[repr(C)]
@@ -18,8 +18,8 @@ struct Linear<T, const IN: usize, const OUT: usize> {
 
 #[repr(C)]
 struct Network {
-    ft: Linear<i16, 768, 256>,
-    l1: Linear<i16, 512, 1>,
+    ft: Linear<i16, 768, 512>,
+    l1: Linear<i16, 1024, 1>,
 }
 
 impl Accumulator {
@@ -58,10 +58,10 @@ impl Accumulator {
         update(&mut self.white, &white_adds, &white_rms);
         update(&mut self.black, &black_adds, &black_rms);
 
-        let mut activated = [0; 512];
-        let (left, right) = activated.split_at_mut(256);
-        let left = <&mut [_; 256]>::try_from(left).unwrap();
-        let right = <&mut [_; 256]>::try_from(right).unwrap();
+        let mut activated = [0; 1024];
+        let (left, right) = activated.split_at_mut(512);
+        let left = <&mut [_; 512]>::try_from(left).unwrap();
+        let right = <&mut [_; 512]>::try_from(right).unwrap();
 
         match board.side_to_move() {
             Color::White => {
@@ -76,7 +76,7 @@ impl Accumulator {
 
         let mut result = NETWORK.l1.bias[0] as i32;
 
-        for i in 0..512 {
+        for i in 0..activated.len() {
             result += activated[i] as i32 * NETWORK.l1.w[i][0] as i32;
         }
 
