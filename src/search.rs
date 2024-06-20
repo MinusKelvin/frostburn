@@ -2,6 +2,7 @@ use core::sync::atomic::Ordering;
 
 use arrayvec::ArrayVec;
 
+use crate::params::*;
 use crate::{Eval, Search, SearchInfo, MAX_DEPTH};
 
 impl Search<'_> {
@@ -29,10 +30,10 @@ impl Search<'_> {
             self.limits.move_time = Some(clock / 2);
         }
 
-        let soft_time_limit = self.limits.clock.map(|clock| clock / 30);
+        let soft_time_limit = self.limits.clock.map(|clock| clock / tm_soft_limit() as u32);
 
         for new_depth in 1.. {
-            let mut delta = 30;
+            let mut delta = asp_initial();
 
             let (mut lower, mut upper) = match new_depth {
                 1 => (Eval::mated(0), Eval::mating(0)),
@@ -43,7 +44,9 @@ impl Search<'_> {
             loop {
                 result = self.negamax::<true>(self.root, lower, upper, new_depth, 0);
 
-                let Some(result) = result else { break; };
+                let Some(result) = result else {
+                    break;
+                };
 
                 match () {
                     _ if result <= lower => lower = result - delta,
@@ -51,7 +54,7 @@ impl Search<'_> {
                     _ => break,
                 }
 
-                delta *= 2;
+                delta += delta * asp_widening() / 100;
             }
 
             self.data.on_first_depth = false;

@@ -53,7 +53,10 @@ params! {
     lmr_factor: 0..=200 = 77;
     lmr_history: 1..=32000 = 4956;
     lmr_history_max: 1..=10 = 4;
-    lmp_a: -1024..=1024 = 9;
+    lmp_a: 0..=1024 = 9;
     lmp_b: -1024..=1024 = 0;
     lmp_c: -1024..=1024 = 83;
+    asp_initial: 1..=1000 = 30;
+    asp_widening: 1..=1000 = 100;
+    tm_soft_limit: 2..=1000 = 30;
 }
