@@ -7,7 +7,7 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use cozy_chess::util::{display_uci_move, parse_uci_move};
-use cozy_chess::{Board, Color};
+use cozy_chess::{Board, BoardBuilder, Color, Piece, Square};
 use frostburn::{Accumulator, Limits, LocalData, Search, SearchInfo, SharedData};
 
 mod bench;
@@ -207,8 +207,58 @@ impl UciHandler {
     }
 
     fn eval(&mut self, _: &mut TokenIter) {
-        let static_eval = Accumulator::new().infer(&self.position);
-        println!("info string staticeval {static_eval}");
+        let mut acc = Accumulator::new();
+        let static_eval = acc.infer(&self.position);
+        let mut others = [None; 64];
+        let remove_pieces = self.position.occupied() - self.position.pieces(Piece::King);
+        for sq in remove_pieces {
+            let mut board = BoardBuilder::from_board(&self.position);
+            board.board[sq as usize] = None;
+            board.castle_rights[0].short = None;
+            board.castle_rights[0].long = None;
+            board.castle_rights[1].short = None;
+            board.castle_rights[1].long = None;
+            if let Ok(board) = board.build() {
+                others[sq as usize] = Some(acc.infer(&board));
+            }
+        }
+
+        for rank in (0..8).rev() {
+            for l in 0..3 {
+                for file in 0..8 {
+                    let idx = rank * 8 + file;
+                    let sq = Square::index(idx);
+
+                    match l {
+                        0 => print!("+-------"),
+                        1 if self.position.occupied().has(sq) => {
+                            print!(
+                                "|  {} {}  ",
+                                self.position.color_on(sq).unwrap(),
+                                self.position.piece_on(sq).unwrap()
+                            );
+                        }
+                        1 => print!("|       "),
+                        2 => match others[idx] {
+                            Some(without) => print!("| {:^+5} ", static_eval - without),
+                            None => print!("|       "),
+                        },
+                        _ => unreachable!(),
+                    }
+                }
+                match l {
+                    0 => println!("+"),
+                    1 | 2 => println!("|"),
+                    _ => unreachable!(),
+                }
+            }
+        }
+        for _ in 0..8 {
+            print!("+-------");
+        }
+        println!("+");
+
+        println!("{static_eval}");
     }
 
     fn go(&mut self, tokens: &mut TokenIter) {
