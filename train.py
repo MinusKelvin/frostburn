@@ -24,8 +24,8 @@ except ImportError:
 class Model(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.ft = torch.nn.Linear(768, 256)
-        self.l1 = torch.nn.Linear(512, 1)
+        self.ft = torch.nn.Linear(768, 512)
+        self.l1 = torch.nn.Linear(1024, 1)
 
     def clip(self):
         pass
