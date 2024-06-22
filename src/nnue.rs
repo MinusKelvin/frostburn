@@ -77,7 +77,7 @@ impl Accumulator {
         let mut result = NETWORK.l1.bias[0] as i32;
 
         for i in 0..activated.len() {
-            result += activated[i] as i32 * NETWORK.l1.w[i][0] as i32;
+            result += activated[i] as i32 * activated[i] as i32 * NETWORK.l1.w[i][0] as i32 / 255;
         }
 
         Eval::cp((result / 128).clamp(-29_000, 29_000) as i16)

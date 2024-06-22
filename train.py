@@ -36,6 +36,7 @@ class Model(torch.nn.Module):
         x = torch.cat((stm, nstm), dim=1)
 
         x = torch.clamp(x, 0, 1)
+        x = x * x
         x = self.l1(x)
 
         return torch.sigmoid(x)
