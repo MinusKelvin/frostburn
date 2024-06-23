@@ -43,20 +43,20 @@ macro_rules! params {
 }
 
 params! {
-    rfp_margin: 0..=200 = 57;
-    rfp_max_depth: 1..=10 = 8;
-    nmp_min_depth: 1..=10 = 2;
-    nmp_divisor: 1..=500 = 171;
-    nmp_depth: 0..=500 = 43;
-    nmp_constant: 0..=1000 = 622;
-    lmr_base: -150..=150 = 24;
-    lmr_factor: 0..=200 = 77;
-    lmr_history: 1..=32000 = 4956;
-    lmr_history_max: 1..=10 = 4;
-    lmp_a: 0..=1024 = 9;
+    rfp_margin: 0..=200 = 63;
+    rfp_max_depth: 1..=10 = 9;
+    nmp_min_depth: 1..=10 = 3;
+    nmp_divisor: 1..=500 = 140;
+    nmp_depth: 0..=500 = 32;
+    nmp_constant: 0..=1000 = 575;
+    lmr_base: -150..=150 = 25;
+    lmr_factor: 0..=200 = 98;
+    lmr_history: 1..=32000 = 5622;
+    lmr_history_max: 1..=10 = 3;
+    lmp_a: 0..=1024 = 7;
     lmp_b: -1024..=1024 = 0;
-    lmp_c: -1024..=1024 = 83;
-    asp_initial: 1..=1000 = 30;
-    asp_widening: 1..=1000 = 100;
-    tm_soft_limit: 2..=1000 = 30;
+    lmp_c: -1024..=1024 = 47;
+    asp_initial: 1..=1000 = 23;
+    asp_widening: 1..=1000 = 110;
+    tm_soft_limit: 2..=1000 = 29;
 }
