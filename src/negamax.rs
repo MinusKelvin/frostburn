@@ -57,6 +57,9 @@ impl Search<'_> {
             let score =
                 self.search_opp::<false>(&new_pos, beta - 1, beta, depth - r as i16, ply + 1)?;
             if score >= beta {
+                if score.is_mate() {
+                    return Some(beta);
+                }
                 return Some(score);
             }
         }
