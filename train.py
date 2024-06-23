@@ -28,7 +28,7 @@ class Model(torch.nn.Module):
         self.l1 = torch.nn.Linear(1024, 1)
 
     def clip(self):
-        pass
+        self.l1.weight.data = self.l1.weight.data.clamp(-127/64, 127/64)
 
     def forward(self, stm, nstm):
         stm = self.ft(stm)
@@ -36,6 +36,7 @@ class Model(torch.nn.Module):
         x = torch.cat((stm, nstm), dim=1)
 
         x = torch.clamp(x, 0, 1)
+        x = x * x
         x = self.l1(x)
 
         return torch.sigmoid(x)

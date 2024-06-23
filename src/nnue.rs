@@ -16,21 +16,21 @@ pub struct Accumulator {
 }
 
 #[repr(C)]
-struct Linear<T, const IN: usize, const OUT: usize> {
-    w: [[T; OUT]; IN],
-    bias: [T; OUT],
+struct FeatureTransformer<const IN: usize, const OUT: usize> {
+    w: [[i16; OUT]; IN],
+    bias: [i16; OUT],
 }
 
 #[repr(C)]
-struct DenseLinear<T, const IN: usize, const OUT: usize> {
-    w: [[T; IN]; OUT],
-    bias: [T; OUT],
+struct Linear<const IN: usize, const OUT: usize> {
+    w: [[i16; IN]; OUT],
+    bias: [i32; OUT],
 }
 
 #[repr(C)]
 struct Network {
-    ft: Linear<i16, 768, 512>,
-    l1: DenseLinear<i16, 1024, 1>,
+    ft: FeatureTransformer<768, 512>,
+    l1: Linear<1024, 1>,
 }
 
 #[derive(Default)]
@@ -93,7 +93,7 @@ impl Accumulator {
         #[cfg(debug_assertions)]
         assert_eq!(result, reference);
 
-        Eval::cp((result / 128).clamp(-29_000, 29_000) as i16)
+        Eval::cp((result / 64).clamp(-29_000, 29_000) as i16)
     }
 }
 
