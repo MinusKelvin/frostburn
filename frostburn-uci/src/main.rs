@@ -170,10 +170,18 @@ impl UciHandler {
     }
 
     fn position(&mut self, tokens: &mut TokenIter) {
+        let mut tokens = tokens.peekable();
+
         match tokens.next().unwrap() {
             "startpos" => self.position = Board::startpos(),
             "fen" => {
-                let fen = tokens.take(6).fold(String::new(), |s, t| s + t + " ");
+                let mut fen = tokens
+                    .by_ref()
+                    .take(4)
+                    .fold(String::new(), |s, t| s + t + " ");
+                fen += tokens.next_if(|&tok| tok != "moves").unwrap_or("0");
+                fen += " ";
+                fen += tokens.next_if(|&tok| tok != "moves").unwrap_or("1");
                 self.position = fen.trim().parse().unwrap();
             }
             unknown => panic!("unknown position type {unknown}"),
