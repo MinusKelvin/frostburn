@@ -3,7 +3,9 @@ use cozy_chess::{BitBoard, Board, Color, Piece, Square};
 
 use crate::Eval;
 
+#[cfg(target_arch = "x86_64")]
 mod avx2;
+
 mod scalar;
 
 #[derive(Clone)]
@@ -80,10 +82,12 @@ impl Accumulator {
         #[cfg(debug_assertions)]
         let reference = self.clone().infer_scalar(board.side_to_move(), &updates);
 
-        let result = if is_x86_feature_detected!("avx2") {
-            unsafe { self.infer_avx2(board.side_to_move(), &updates) }
-        } else {
-            self.infer_scalar(board.side_to_move(), &updates)
+        let result = match () {
+            #[cfg(target_arch = "x86_64")]
+            _ if is_x86_feature_detected!("avx2") => unsafe {
+                self.infer_avx2(board.side_to_move(), &updates)
+            },
+            _ => self.infer_scalar(board.side_to_move(), &updates),
         };
 
         #[cfg(debug_assertions)]
