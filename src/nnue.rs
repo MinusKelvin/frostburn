@@ -3,6 +3,7 @@ use cozy_chess::{BitBoard, Board, Color, Piece, Square};
 
 use crate::Eval;
 
+mod avx2;
 mod scalar;
 
 #[derive(Clone)]
@@ -19,9 +20,15 @@ struct Linear<T, const IN: usize, const OUT: usize> {
 }
 
 #[repr(C)]
+struct DenseLinear<T, const IN: usize, const OUT: usize> {
+    w: [[T; IN]; OUT],
+    bias: [T; OUT],
+}
+
+#[repr(C)]
 struct Network {
     ft: Linear<i16, 768, 512>,
-    l1: Linear<i16, 1024, 1>,
+    l1: DenseLinear<i16, 1024, 1>,
 }
 
 #[derive(Default)]
@@ -70,7 +77,17 @@ impl Accumulator {
             }
         }
 
-        let result = { self.infer_scalar(board.side_to_move(), &updates) };
+        #[cfg(debug_assertions)]
+        let reference = self.clone().infer_scalar(board.side_to_move(), &updates);
+
+        let result = if is_x86_feature_detected!("avx2") {
+            unsafe { self.infer_avx2(board.side_to_move(), &updates) }
+        } else {
+            self.infer_scalar(board.side_to_move(), &updates)
+        };
+
+        #[cfg(debug_assertions)]
+        assert_eq!(result, reference);
 
         Eval::cp((result / 128).clamp(-29_000, 29_000) as i16)
     }
