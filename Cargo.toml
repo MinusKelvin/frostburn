@@ -9,6 +9,7 @@ edition = "2021"
 
 [features]
 tunable = []
+check-inference = []
 
 [dependencies]
 arrayvec = "0.7.4"
