@@ -1,5 +1,5 @@
 EXE = frostburn
 
 default:
-	RUSTFLAGS='-C target-cpu=native' EVALFILE=$(EVALFILE) cargo build --release -p frostburn-uci
+	EVALFILE=$(EVALFILE) cargo rustc --release -p frostburn-uci -- -C target-feature=+popcnt,+lzcnt,+bmi1
 	cp target/release/frostburn-uci $(EXE)
