@@ -79,7 +79,7 @@ impl Accumulator {
             }
         }
 
-        #[cfg(debug_assertions)]
+        #[cfg(feature = "check-inference")]
         let reference = self.clone().infer_scalar(board.side_to_move(), &updates);
 
         let result = match () {
@@ -90,7 +90,7 @@ impl Accumulator {
             _ => self.infer_scalar(board.side_to_move(), &updates),
         };
 
-        #[cfg(debug_assertions)]
+        #[cfg(feature = "check-inference")]
         assert_eq!(result, reference);
 
         Eval::cp((result / 64).clamp(-29_000, 29_000) as i16)

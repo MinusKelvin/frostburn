@@ -24,7 +24,7 @@ pub fn bench() {
             data: &mut local,
             shared: &shared,
             limits: Limits {
-                depth: Some(12),
+                depth: Some(15),
                 ..Default::default()
             },
         }
