@@ -3,6 +3,8 @@ use cozy_chess::{BitBoard, Board, Color, Piece, Square};
 
 use crate::Eval;
 
+mod scalar;
+
 #[derive(Clone)]
 pub struct Accumulator {
     enabled: [[BitBoard; 6]; 2],
@@ -22,6 +24,14 @@ struct Network {
     l1: Linear<i16, 1024, 1>,
 }
 
+#[derive(Default)]
+struct Updates<'a, const N: usize = 512> {
+    white_adds: ArrayVec<&'a [i16; N], 32>,
+    white_rms: ArrayVec<&'a [i16; N], 32>,
+    black_adds: ArrayVec<&'a [i16; N], 32>,
+    black_rms: ArrayVec<&'a [i16; N], 32>,
+}
+
 impl Accumulator {
     pub fn new() -> Self {
         Accumulator {
@@ -32,10 +42,7 @@ impl Accumulator {
     }
 
     pub fn infer(&mut self, board: &Board) -> Eval {
-        let mut white_adds = ArrayVec::<_, 32>::new();
-        let mut white_rms = ArrayVec::<_, 32>::new();
-        let mut black_adds = ArrayVec::<_, 32>::new();
-        let mut black_rms = ArrayVec::<_, 32>::new();
+        let mut updates = Updates::default();
         for color in Color::ALL {
             for piece in Piece::ALL {
                 let enabled = &mut self.enabled[color as usize][piece as usize];
@@ -45,64 +52,28 @@ impl Accumulator {
                 *enabled = feats;
 
                 for sq in removed {
-                    white_rms.push(&NETWORK.ft.w[feature(Color::White, color, piece, sq)]);
-                    black_rms.push(&NETWORK.ft.w[feature(Color::Black, color, piece, sq)]);
+                    updates
+                        .white_rms
+                        .push(&NETWORK.ft.w[feature(Color::White, color, piece, sq)]);
+                    updates
+                        .black_rms
+                        .push(&NETWORK.ft.w[feature(Color::Black, color, piece, sq)]);
                 }
                 for sq in added {
-                    white_adds.push(&NETWORK.ft.w[feature(Color::White, color, piece, sq)]);
-                    black_adds.push(&NETWORK.ft.w[feature(Color::Black, color, piece, sq)]);
+                    updates
+                        .white_adds
+                        .push(&NETWORK.ft.w[feature(Color::White, color, piece, sq)]);
+                    updates
+                        .black_adds
+                        .push(&NETWORK.ft.w[feature(Color::Black, color, piece, sq)]);
                 }
             }
         }
 
-        update(&mut self.white, &white_adds, &white_rms);
-        update(&mut self.black, &black_adds, &black_rms);
-
-        let mut activated = [0; 1024];
-        let (left, right) = activated.split_at_mut(512);
-        let left = <&mut [_; 512]>::try_from(left).unwrap();
-        let right = <&mut [_; 512]>::try_from(right).unwrap();
-
-        match board.side_to_move() {
-            Color::White => {
-                *left = crelu(&self.white);
-                *right = crelu(&self.black);
-            }
-            Color::Black => {
-                *left = crelu(&self.black);
-                *right = crelu(&self.white);
-            }
-        }
-
-        let mut result = NETWORK.l1.bias[0] as i32;
-
-        for i in 0..activated.len() {
-            result += activated[i] as i32 * NETWORK.l1.w[i][0] as i32;
-        }
+        let result = { self.infer_scalar(board.side_to_move(), &updates) };
 
         Eval::cp((result / 128).clamp(-29_000, 29_000) as i16)
     }
-}
-
-fn update<const N: usize>(acc: &mut [i16; N], adds: &[&[i16; N]], rms: &[&[i16; N]]) {
-    for add in adds {
-        for i in 0..N {
-            acc[i] += add[i];
-        }
-    }
-    for rm in rms {
-        for i in 0..N {
-            acc[i] -= rm[i];
-        }
-    }
-}
-
-fn crelu<const N: usize>(a: &[i16; N]) -> [i16; N] {
-    let mut result = [0; N];
-    for i in 0..N {
-        result[i] = a[i].clamp(0, 255);
-    }
-    result
 }
 
 fn feature(stm: Color, color: Color, piece: Piece, sq: Square) -> usize {
