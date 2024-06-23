@@ -36,7 +36,7 @@ impl Accumulator {
         result = _mm_add_epi32(result, _mm_shuffle_epi32::<0b10_11_00_01>(result));
         // result = A+B+C+D A+B+C+D A+B+C+D A+B+C+D
 
-        (NETWORK.l1.bias[0] + _mm_extract_epi32::<0>(result)) / 256
+        (NETWORK.l1.bias[0] + _mm_extract_epi32::<0>(result)) / 1024
     }
 }
 
@@ -86,17 +86,20 @@ unsafe fn fused_activate_dot(a: &[i16; 512], w: &[i16; 512]) -> __m256i {
     let mut result = _mm256_setzero_si256();
 
     let zero = _mm256_setzero_si256();
-    let one = _mm256_set1_epi16(256);
+    let one = _mm256_set1_epi16(362);
 
     for i in 0..CHUNKS {
         let a = _mm256_loadu_si256(a.add(i));
         let a = _mm256_max_epi16(a, zero);
         let a = _mm256_min_epi16(a, one);
+        // a: 0..=362
+        let a = _mm256_slli_epi16::<7>(a);
+        // a: 0..=46336 = a<<7
+        let aa = _mm256_mulhi_epu16(a, a);
+        // aa: 0..=32761 = (a<<7)**2>>16 = a**2 >> 2
 
         let w = _mm256_loadu_si256(w.add(i));
-        // a: 0..=256, w: -127..=127, therefore a*w fits in i16
-        let aw = _mm256_mullo_epi16(a, w);
-        let v = _mm256_madd_epi16(a, aw);
+        let v = _mm256_madd_epi16(aa, w);
 
         result = _mm256_add_epi32(result, v);
     }

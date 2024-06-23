@@ -28,10 +28,11 @@ impl Accumulator {
         let mut result = NETWORK.l1.bias[0] as i32;
 
         for i in 0..activated.len() {
-            result += activated[i] as i32 * activated[i] as i32 * NETWORK.l1.w[0][i] as i32;
+            let sq = (activated[i] as i32 * activated[i] as i32) >> 2;
+            result += sq * NETWORK.l1.w[0][i] as i32;
         }
 
-        result / 256
+        result / 1024
     }
 }
 
@@ -51,7 +52,7 @@ fn update<const N: usize>(acc: &mut [i16; N], adds: &[&[i16; N]], rms: &[&[i16; 
 fn crelu<const N: usize>(a: &[i16; N]) -> [i16; N] {
     let mut result = [0; N];
     for i in 0..N {
-        result[i] = a[i].clamp(0, 256);
+        result[i] = a[i].clamp(0, 362);
     }
     result
 }

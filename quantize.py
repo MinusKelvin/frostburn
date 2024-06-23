@@ -38,15 +38,15 @@ class Emit:
 def transpose(m):
     return [[m[i][j] for i in range(len(m))] for j in range(len(m[0]))]
 
-FT_UNIT = 256
-L1_UNIT = 64
+FT_UNIT = 362
+L1_UNIT = 128
 
 emit = Emit()
 
 emit.put_many_i16(transpose(model["ft.weight"]), FT_UNIT)
 emit.put_many_i16(model["ft.bias"], FT_UNIT)
 
-emit.put_many_i16(transpose(model["l1.weight"]), L1_UNIT)
+emit.put_many_i16(transpose(model["l1.weight"]), L1_UNIT * 4)
 emit.put_many_i32(model["l1.bias"], FT_UNIT * FT_UNIT * L1_UNIT)
 
 with open(sys.argv[2], "wb") as f:
