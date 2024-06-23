@@ -33,7 +33,7 @@ impl Search<'_> {
         let soft_time_limit = self.limits.clock.map(|clock| clock / tm_soft_limit() as u32);
 
         for new_depth in 1.. {
-            let mut delta = asp_initial();
+            let mut delta = asp_initial() as i32;
 
             let (mut lower, mut upper) = match new_depth {
                 1 => (Eval::mated(0), Eval::mating(0)),
@@ -54,7 +54,7 @@ impl Search<'_> {
                     _ => break,
                 }
 
-                delta += delta * asp_widening() / 100;
+                delta += delta * asp_widening() as i32 / 100;
             }
 
             self.data.on_first_depth = false;
