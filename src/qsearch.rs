@@ -15,7 +15,7 @@ impl Search<'_> {
         self.count_node_and_check_abort(false)?;
 
         let tt = self.shared.tt.load(pos.hash(), ply);
-        let tt_mv = tt.map(|tt| tt.mv.into());
+        let tt_mv = tt.and_then(|tt| tt.mv.into());
 
         match tt {
             Some(tt) if tt.bound.exact() => return Some(tt.score),
@@ -72,7 +72,7 @@ impl Search<'_> {
             }
         }
 
-        if let Some(best_mv) = best_mv {
+        if best_mv.is_some() {
             self.shared.tt.store(
                 pos.hash(),
                 ply,

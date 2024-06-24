@@ -58,23 +58,23 @@ impl TranspositionTable {
     }
 }
 
-impl From<Move> for PackedMove {
-    fn from(value: Move) -> Self {
-        PackedMove(
+impl From<Option<Move>> for PackedMove {
+    fn from(value: Option<Move>) -> Self {
+        PackedMove(value.map_or(0, |value| {
             value.from as u16
                 | (value.to as u16) << 6
-                | value.promotion.map_or(6, |p| p as u16) << 12,
-        )
+                | value.promotion.map_or(6, |p| p as u16) << 12
+        }))
     }
 }
 
-impl From<PackedMove> for Move {
+impl From<PackedMove> for Option<Move> {
     fn from(value: PackedMove) -> Self {
-        Move {
+        (value.0 != 0).then_some(Move {
             from: Square::index((value.0 & 0x3F) as usize),
             to: Square::index((value.0 >> 6 & 0x3F) as usize),
             promotion: Piece::try_index((value.0 >> 12 & 0x7) as usize),
-        }
+        })
     }
 }
 
