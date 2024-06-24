@@ -15,7 +15,7 @@ impl Search<'_> {
         self.count_node_and_check_abort(false)?;
 
         let tt = self.shared.tt.load(pos.hash(), ply);
-        let tt_mv = tt.map(|tt| tt.mv.into());
+        let tt_mv = tt.and_then(|tt| tt.mv.into());
 
         match tt {
             Some(tt) if tt.bound.exact() => return Some(tt.score),
@@ -72,19 +72,17 @@ impl Search<'_> {
             }
         }
 
-        if let Some(best_mv) = best_mv {
-            self.shared.tt.store(
-                pos.hash(),
-                ply,
-                TtEntry {
-                    lower_hash_bits: 0,
-                    mv: best_mv.into(),
-                    score: best_score,
-                    depth: 0,
-                    bound: Bound::compute(orig_alpha, beta, best_score),
-                },
-            );
-        }
+        self.shared.tt.store(
+            pos.hash(),
+            ply,
+            TtEntry {
+                lower_hash_bits: 0,
+                mv: best_mv.into(),
+                score: best_score,
+                depth: 0,
+                bound: Bound::compute(orig_alpha, beta, best_score),
+            },
+        );
 
         Some(best_score)
     }
