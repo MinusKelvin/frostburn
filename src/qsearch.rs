@@ -5,7 +5,7 @@ use crate::tt::{Bound, TtEntry};
 use crate::{Eval, Search, MAX_PLY};
 
 impl Search<'_> {
-    pub(crate) fn qsearch(
+    pub(crate) fn qsearch<const PV: bool>(
         &mut self,
         pos: &Board,
         mut alpha: Eval,
@@ -18,6 +18,7 @@ impl Search<'_> {
         let tt_mv = tt.map(|tt| tt.mv.into());
 
         match tt {
+            _ if PV => {}
             Some(tt) if tt.bound.exact() => return Some(tt.score),
             Some(tt) if tt.bound.lower() && tt.score >= beta => return Some(tt.score),
             Some(tt) if tt.bound.upper() && tt.score <= alpha => return Some(tt.score),
@@ -56,7 +57,7 @@ impl Search<'_> {
             let mut new_pos = pos.clone();
             new_pos.play_unchecked(scored_mv.mv);
 
-            let score = -self.qsearch(&new_pos, -beta, -alpha, ply + 1)?;
+            let score = -self.qsearch::<PV>(&new_pos, -beta, -alpha, ply + 1)?;
 
             if score > best_score {
                 best_mv = Some(scored_mv.mv);
