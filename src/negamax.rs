@@ -102,7 +102,7 @@ impl Search<'_> {
             self.data.prev_moves[ply] = Some((scored_mv.mv, piece));
 
             let mut score;
-            if ply != 0 && self.history.contains(&new_pos.hash()) {
+            if ply != 0 && self.history.contains(&new_pos.hash()) || pos.halfmove_clock() == 100 {
                 score = Eval::cp(0);
             } else if PV && i == 0 {
                 score = self.search_opp::<true>(&new_pos, alpha, beta, depth - 1, ply + 1)?;
