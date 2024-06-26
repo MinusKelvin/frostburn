@@ -79,6 +79,16 @@ impl Search<'_> {
             self.data.followup_hist.get(followup_prior),
         );
 
+        if !move_picker.has_moves() {
+            if pos.checkers().is_empty() {
+                return Some(Eval::cp(0));
+            } else {
+                return Some(Eval::mated(ply));
+            }
+        } else if pos.halfmove_clock() == 100 {
+            return Some(Eval::cp(0));
+        }
+
         self.history.push(pos.hash());
 
         let lmp_limit = ((depth as i32 * depth as i32 * lmp_a() as i32
@@ -182,13 +192,7 @@ impl Search<'_> {
 
         self.history.pop();
 
-        let Some(best_mv) = best_mv else {
-            if pos.checkers().is_empty() {
-                return Some(Eval::cp(0));
-            } else {
-                return Some(Eval::mated(ply));
-            }
-        };
+        let best_mv = best_mv.unwrap();
 
         let bound = Bound::compute(orig_alpha, beta, best_score);
         self.shared.tt.store(
