@@ -36,15 +36,14 @@ impl TranspositionTable {
         }
     }
 
-    pub fn load(&self, hash: u64, ply: usize) -> Option<TtEntry> {
-        let mut data: TtEntry = bytemuck::cast(self.slot(hash).load(Ordering::Relaxed));
-        data.score = data.score.add_time(ply);
+    pub fn load(&self, hash: u64, _ply: usize) -> Option<TtEntry> {
+        let data: TtEntry = bytemuck::cast(self.slot(hash).load(Ordering::Relaxed));
         (data.lower_hash_bits == hash as u16).then_some(data)
     }
 
-    pub fn store(&self, hash: u64, ply: usize, mut entry: TtEntry) {
+    pub fn store(&self, hash: u64, _ply: usize, mut entry: TtEntry) {
         entry.lower_hash_bits = hash as u16;
-        entry.score = entry.score.sub_time(ply);
+        entry.score = entry.score.clamp_nonmate();
         self.slot(hash)
             .store(bytemuck::cast(entry), Ordering::Relaxed);
     }

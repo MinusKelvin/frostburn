@@ -30,6 +30,10 @@ impl Eval {
         self.0 < -MAX_NONMATE
     }
 
+    pub fn clamp_nonmate(self) -> Self {
+        Eval(self.0.clamp(-MAX_NONMATE, MAX_NONMATE))
+    }
+
     pub fn sub_time(self, ply: usize) -> Eval {
         if self.0 < -MAX_NONMATE {
             Eval(self.0 - ply as i16)
