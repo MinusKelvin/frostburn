@@ -15,7 +15,7 @@ impl Search<'_> {
         ply: usize,
     ) -> Option<Eval> {
         if depth <= 0 || ply >= MAX_PLY {
-            return self.qsearch(pos, alpha, beta, ply);
+            return self.qsearch::<PV>(pos, alpha, beta, ply);
         }
 
         self.count_node_and_check_abort(false)?;
