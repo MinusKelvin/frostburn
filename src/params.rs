@@ -59,4 +59,7 @@ params! {
     asp_initial: 1..=1000 = 23;
     asp_widening: 1..=1000 = 110;
     tm_soft_limit: 2..=1000 = 29;
+    razor_max_depth: 1..=10 = 3;
+    razor_base: 0..=1000 = 200;
+    razor_margin: 0..=1000 = 50;
 }

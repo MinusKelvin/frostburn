@@ -49,6 +49,17 @@ impl Search<'_> {
             return Some(eval);
         }
 
+        if !PV
+            && pos.checkers().is_empty()
+            && depth <= razor_max_depth()
+            && eval <= alpha - razor_margin() * depth - razor_base()
+        {
+            let score = self.qsearch(pos, alpha, beta, ply)?;
+            if score <= alpha {
+                return Some(score);
+            }
+        }
+
         if !PV && pos.checkers().is_empty() && eval >= beta && depth >= nmp_min_depth() {
             let new_pos = pos.null_move().unwrap();
             let r = (eval - beta + depth as i32 * nmp_depth() as i32 + nmp_constant() as i32)
