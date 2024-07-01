@@ -64,8 +64,8 @@ impl Search<'_> {
             }
         }
 
-        let counter_prior = (ply > 0).then(|| self.data.prev_moves[ply - 1]).flatten();
-        let followup_prior = (ply > 1).then(|| self.data.prev_moves[ply - 2]).flatten();
+        let counter_prior = (ply > 0).then(|| self.data.prev_moves[ply - 1]);
+        let followup_prior = (ply > 1).then(|| self.data.prev_moves[ply - 2]);
 
         let orig_alpha = alpha;
         let mut best_mv = None;
@@ -75,8 +75,8 @@ impl Search<'_> {
             &self.data,
             tt_mv,
             false,
-            self.data.counter_hist.get(counter_prior),
-            self.data.followup_hist.get(followup_prior),
+            counter_prior.map(|mv| self.data.counter_hist.get(mv)),
+            followup_prior.map(|mv| self.data.followup_hist.get(mv)),
         );
 
         self.history.push(pos.hash());
@@ -152,8 +152,10 @@ impl Search<'_> {
 
             if score > beta {
                 if quiet {
-                    let mut counter_hist = self.data.counter_hist.get_mut(counter_prior);
-                    let mut followup_hist = self.data.followup_hist.get_mut(followup_prior);
+                    let mut counter_hist =
+                        counter_prior.map(|mv| self.data.counter_hist.get_mut(mv));
+                    let mut followup_hist =
+                        followup_prior.map(|mv| self.data.followup_hist.get_mut(mv));
 
                     self.data.history.update(pos, scored_mv.mv, 64 * depth);
                     if let Some(counter_hist) = counter_hist.as_deref_mut() {

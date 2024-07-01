@@ -40,21 +40,23 @@ impl PieceHistory {
 
 pub struct ContinuationHistory {
     table: Box<P<Sq<PieceHistory>>>,
+    null_table: PieceHistory,
 }
 
 impl ContinuationHistory {
     pub fn new() -> Self {
         ContinuationHistory {
             table: bytemuck::zeroed_box(),
+            null_table: Zeroable::zeroed(),
         }
     }
 
-    pub fn get(&self, prior: Option<(Move, Piece)>) -> Option<&PieceHistory> {
-        prior.map(|(mv, piece)| &self.table[piece][mv.to])
+    pub fn get(&self, prior: Option<(Move, Piece)>) -> &PieceHistory {
+        prior.map_or(&self.null_table, |(mv, piece)| &self.table[piece][mv.to])
     }
 
-    pub fn get_mut(&mut self, prior: Option<(Move, Piece)>) -> Option<&mut PieceHistory> {
-        prior.map(|(mv, piece)| &mut self.table[piece][mv.to])
+    pub fn get_mut(&mut self, prior: Option<(Move, Piece)>) -> &mut PieceHistory {
+        prior.map_or(&mut self.null_table, |(mv, piece)| &mut self.table[piece][mv.to])
     }
 
     pub fn decay(&mut self) {
@@ -63,6 +65,7 @@ impl ContinuationHistory {
         for table in tables {
             table.decay();
         }
+        self.null_table.decay();
     }
 }
 
