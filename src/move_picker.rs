@@ -20,6 +20,7 @@ pub struct ScoredMove {
     pub score: i32,
     pub see: i32,
     pub history: i32,
+    pub conthist: i32,
 }
 
 impl<'a> MovePicker<'a> {
@@ -49,6 +50,7 @@ impl<'a> MovePicker<'a> {
             for mv in mvs {
                 let mut see_score = 0;
                 let mut history = 0;
+                let mut conthist = 0;
                 let mut score = match tt_mv {
                     Some(tt_mv) if mv == tt_mv => 1_000_000,
                     _ if opp.has(mv.to) => {
@@ -61,9 +63,9 @@ impl<'a> MovePicker<'a> {
                         }
                     }
                     _ => {
-                        history = data.history.get(board, mv) as i32
-                            + counter_hist.map_or(0, |table| table.get(board, mv) as i32)
+                        conthist = counter_hist.map_or(0, |table| table.get(board, mv) as i32)
                             + followup_hist.map_or(0, |table| table.get(board, mv) as i32);
+                        history = data.history.get(board, mv) as i32 + conthist;
                         history
                     }
                 };
@@ -78,6 +80,7 @@ impl<'a> MovePicker<'a> {
                     score,
                     see: see_score,
                     history,
+                    conthist,
                 });
             }
         }
