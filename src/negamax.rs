@@ -65,7 +65,8 @@ impl Search<'_> {
         }
 
         let counter_prior = (ply > 0).then(|| self.data.prev_moves[ply - 1]).flatten();
-        let followup_prior = (ply > 1).then(|| self.data.prev_moves[ply - 2]).flatten();
+        let followup_prior =
+            counter_prior.and((ply > 1).then(|| self.data.prev_moves[ply - 2]).flatten());
 
         let orig_alpha = alpha;
         let mut best_mv = None;
