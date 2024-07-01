@@ -81,19 +81,22 @@ impl Search<'_> {
 
         self.history.push(pos.hash());
 
-        let lmp_limit = ((depth as i32 * depth as i32 * lmp_a() as i32
+        let mut lmp_moves = ((depth as i32 * depth as i32 * lmp_a() as i32
             + depth as i32 * lmp_b() as i32
             + lmp_c() as i32)
             / 16)
-            .max(0) as usize;
+            .max(0);
 
         while let Some((i, scored_mv)) = move_picker.next(&self.data) {
             let piece = pos.piece_on(scored_mv.mv.from).unwrap();
 
             let quiet = !pos.colors(!pos.side_to_move()).has(scored_mv.mv.to);
 
-            if !PV && quiet && !best_score.losing() && i > lmp_limit {
-                continue;
+            if !PV && quiet {
+                lmp_moves -= 1;
+                if lmp_moves < 0 && !best_score.losing() {
+                    continue;
+                }
             }
 
             let mut new_pos = pos.clone();
