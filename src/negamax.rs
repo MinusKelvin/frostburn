@@ -43,7 +43,7 @@ impl Search<'_> {
 
         if !PV
             && pos.checkers().is_empty()
-            && depth <= rfp_max_depth()
+            && depth <= ply as i16 * rfp_cond_ply() + rfp_cond_base()
             && eval >= beta + rfp_margin() * depth
         {
             return Some(eval);
