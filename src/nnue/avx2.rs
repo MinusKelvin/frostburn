@@ -2,15 +2,15 @@ use std::arch::x86_64::*;
 
 use cozy_chess::Color;
 
-use super::{Accumulator, Updates, NETWORK};
+use super::{Accumulator, Updates, FEATURE_FLIP, NETWORK};
 
 const CHUNKS: usize = 512 / 16;
 
 impl Accumulator {
     #[target_feature(enable = "avx2")]
     pub(super) unsafe fn infer_avx2(&mut self, stm: Color, updates: &Updates) -> i32 {
-        update(&mut self.white, &updates.white_adds, &updates.white_rms);
-        update(&mut self.black, &updates.black_adds, &updates.black_rms);
+        update(&mut self.white, &updates.adds, &updates.rms, 0);
+        update(&mut self.black, &updates.adds, &updates.rms, FEATURE_FLIP);
 
         let (first, last) = NETWORK.l1.w[0].split_at(512);
         let first = <&[_; 512]>::try_from(first).unwrap();
@@ -41,17 +41,18 @@ impl Accumulator {
 }
 
 #[target_feature(enable = "avx2")]
-unsafe fn update(acc: &mut [i16; 512], adds: &[&[i16; 512]], subs: &[&[i16; 512]]) {
+unsafe fn update(acc: &mut [i16; 512], adds: &[usize], subs: &[usize], flip: usize) {
     for block in (0..CHUNKS).step_by(16) {
-        partial_update(acc, adds, subs, block);
+        partial_update(acc, adds, subs, flip, block);
     }
 }
 
 #[target_feature(enable = "avx2")]
 unsafe fn partial_update(
     acc: &mut [i16; 512],
-    adds: &[&[i16; 512]],
-    subs: &[&[i16; 512]],
+    adds: &[usize],
+    subs: &[usize],
+    flip: usize,
     block: usize,
 ) {
     let acc: *mut __m256i = acc.as_mut_ptr().cast();
@@ -60,14 +61,14 @@ unsafe fn partial_update(
         intermediates[i] = _mm256_loadu_si256(acc.add(block + i));
     }
     for add in adds {
-        let add: *const __m256i = add.as_ptr().cast();
+        let add: *const __m256i = NETWORK.ft.w[add ^ flip].as_ptr().cast();
         for i in 0..16 {
             let v = _mm256_loadu_si256(add.add(block + i));
             intermediates[i] = _mm256_add_epi16(intermediates[i], v);
         }
     }
     for sub in subs {
-        let sub: *const __m256i = sub.as_ptr().cast();
+        let sub: *const __m256i = NETWORK.ft.w[sub ^ flip].as_ptr().cast();
         for i in 0..16 {
             let v = _mm256_loadu_si256(sub.add(block + i));
             intermediates[i] = _mm256_sub_epi16(intermediates[i], v);

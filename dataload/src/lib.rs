@@ -99,8 +99,8 @@ fn feature(stm: Color, color: Color, piece: Piece, sq: Square) -> i64 {
     };
 
     let i = 0;
-    let i = i * Color::NUM + color as usize;
     let i = i * Piece::NUM + piece as usize;
+    let i = i * Color::NUM + color as usize;
     let i = i * Square::NUM + sq as usize;
 
     i as i64

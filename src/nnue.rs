@@ -8,6 +8,8 @@ mod avx2;
 
 mod scalar;
 
+const FEATURE_FLIP: usize = 0b1_111_000;
+
 #[derive(Clone)]
 pub struct Accumulator {
     enabled: [[BitBoard; 6]; 2],
@@ -34,11 +36,9 @@ struct Network {
 }
 
 #[derive(Default)]
-struct Updates<'a, const N: usize = 512> {
-    white_adds: ArrayVec<&'a [i16; N], 32>,
-    white_rms: ArrayVec<&'a [i16; N], 32>,
-    black_adds: ArrayVec<&'a [i16; N], 32>,
-    black_rms: ArrayVec<&'a [i16; N], 32>,
+struct Updates<const N: usize = 512> {
+    adds: ArrayVec<usize, 32>,
+    rms: ArrayVec<usize, 32>,
 }
 
 impl Accumulator {
@@ -61,20 +61,10 @@ impl Accumulator {
                 *enabled = feats;
 
                 for sq in removed {
-                    updates
-                        .white_rms
-                        .push(&NETWORK.ft.w[feature(Color::White, color, piece, sq)]);
-                    updates
-                        .black_rms
-                        .push(&NETWORK.ft.w[feature(Color::Black, color, piece, sq)]);
+                    updates.rms.push(feature(color, piece, sq));
                 }
                 for sq in added {
-                    updates
-                        .white_adds
-                        .push(&NETWORK.ft.w[feature(Color::White, color, piece, sq)]);
-                    updates
-                        .black_adds
-                        .push(&NETWORK.ft.w[feature(Color::Black, color, piece, sq)]);
+                    updates.adds.push(feature(color, piece, sq));
                 }
             }
         }
@@ -97,17 +87,11 @@ impl Accumulator {
     }
 }
 
-fn feature(stm: Color, color: Color, piece: Piece, sq: Square) -> usize {
-    let (color, sq) = match stm {
-        Color::White => (color, sq),
-        Color::Black => (!color, sq.flip_rank()),
-    };
-
+fn feature(color: Color, piece: Piece, sq: Square) -> usize {
     let i = 0;
-    let i = i * Color::NUM + color as usize;
     let i = i * Piece::NUM + piece as usize;
+    let i = i * Color::NUM + color as usize;
     let i = i * Square::NUM + sq as usize;
-
     i
 }
 
