@@ -91,23 +91,16 @@ impl<'a> MovePicker<'a> {
         }
     }
 
+    #[inline(always)]
     pub fn next(&mut self, _data: &LocalData) -> Option<(usize, &ScoredMove)> {
-        if self.next_idx >= self.moves.len() {
-            return None;
-        }
-
         let i = self.next_idx;
-        self.next_idx += 1;
-
-        let mut best = i;
-        for j in i + 1..self.moves.len() {
-            if self.moves[j] > self.moves[best] {
-                best = j;
-            }
-        }
-
+        let (best, _) = self.moves
+            .iter()
+            .enumerate()
+            .skip(i)
+            .min_by_key(|&(_, mv)| std::cmp::Reverse(mv))?;
         self.moves.swap(i, best);
-
+        self.next_idx += 1;
         Some((i, &self.moves[i]))
     }
 
