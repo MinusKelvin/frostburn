@@ -38,6 +38,8 @@ impl Search<'_> {
         };
 
         let static_eval = self.eval(pos);
+        self.data.prev_evals[ply] = static_eval;
+        let improving = ply > 1 && static_eval > self.data.prev_evals[ply - 2];
 
         let eval = tt.map_or(static_eval, |tt| tt.score);
 
@@ -127,6 +129,7 @@ impl Search<'_> {
                 r -= ((scored_mv.history / lmr_history() as i32) as i16)
                     .clamp(-lmr_history_max(), lmr_history_max());
                 r -= PV as i16;
+                r -= improving as i16;
 
                 if r < 0 || !quiet {
                     r = 0;
