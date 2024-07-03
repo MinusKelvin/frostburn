@@ -38,6 +38,9 @@ impl Search<'_> {
         };
 
         let static_eval = self.eval(pos);
+        self.data.prev_evals[ply] = static_eval;
+        let improving =
+            pos.checkers().is_empty() && ply > 1 && static_eval > self.data.prev_evals[ply - 2];
 
         let eval = tt.map_or(static_eval, |tt| tt.score);
 
@@ -92,11 +95,14 @@ impl Search<'_> {
 
         self.history.push(pos.hash());
 
-        let lmp_limit = ((depth as i32 * depth as i32 * lmp_a() as i32
+        let lmp_base = depth as i32 * depth as i32 * lmp_a() as i32
             + depth as i32 * lmp_b() as i32
-            + lmp_c() as i32)
-            / 16)
-            .max(0) as usize;
+            + lmp_c() as i32;
+        let lmp_limit = match improving {
+            true => lmp_base / 8,
+            false => lmp_base / 16,
+        }
+        .max(0) as usize;
 
         while let Some((i, scored_mv)) = move_picker.next(&self.data) {
             let piece = pos.piece_on(scored_mv.mv.from).unwrap();
