@@ -43,23 +43,23 @@ macro_rules! params {
 }
 
 params! {
-    rfp_margin: 0..=200 = 63;
-    rfp_max_depth: 1..=10 = 9;
-    nmp_min_depth: 1..=10 = 3;
-    nmp_divisor: 1..=500 = 140;
-    nmp_depth: 0..=500 = 32;
-    nmp_constant: 0..=1000 = 575;
+    rfp_margin: 0..=200 = 42;
+    rfp_max_depth: 1..=20 = 10;
+    nmp_min_depth: 1..=10 = 4;
+    nmp_divisor: 1..=500 = 137;
+    nmp_depth: 0..=500 = 34;
+    nmp_constant: 0..=1000 = 540;
     lmr_base: -150..=150 = 25;
-    lmr_factor: 0..=200 = 98;
-    lmr_history: 1..=32000 = 5622;
+    lmr_factor: 0..=200 = 107;
+    lmr_history: 1..=32000 = 6695;
     lmr_history_max: 1..=10 = 3;
-    lmp_a: 0..=1024 = 7;
+    lmp_a: 0..=1024 = 5;
     lmp_b: -1024..=1024 = 0;
-    lmp_c: -1024..=1024 = 47;
-    asp_initial: 1..=1000 = 23;
-    asp_widening: 1..=1000 = 110;
-    tm_soft_limit: 2..=1000 = 29;
+    lmp_c: -1024..=1024 = 52;
+    asp_initial: 1..=1000 = 18;
+    asp_widening: 1..=1000 = 101;
+    tm_soft_limit: 2..=1000 = 26;
     razor_max_depth: 1..=10 = 3;
-    razor_base: 0..=1000 = 200;
-    razor_margin: 0..=1000 = 50;
+    razor_base: 0..=1000 = 240;
+    razor_margin: 0..=1000 = 56;
 }
