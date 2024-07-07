@@ -167,7 +167,7 @@ impl Search<'_> {
                 alpha = score;
             }
 
-            if score > beta {
+            if score > beta - 5 {
                 if quiet {
                     let mut counter_hist = self.data.counter_hist.get_mut(counter_prior);
                     let mut followup_hist = self.data.followup_hist.get_mut(followup_prior);
