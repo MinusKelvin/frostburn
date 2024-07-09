@@ -37,6 +37,8 @@ impl Search<'_> {
             _ => depth,
         };
 
+        let tt_pv = tt.is_some_and(|tt| tt.bound.exact());
+
         let static_eval = self.eval(pos);
         self.data.prev_evals[ply] = static_eval;
         let improving =
@@ -132,7 +134,7 @@ impl Search<'_> {
 
                 r -= ((scored_mv.history / lmr_history() as i32) as i16)
                     .clamp(-lmr_history_max(), lmr_history_max());
-                r -= PV as i16;
+                r -= (PV || tt_pv) as i16;
 
                 if r < 0 || !quiet {
                     r = 0;
