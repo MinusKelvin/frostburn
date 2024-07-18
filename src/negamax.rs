@@ -44,10 +44,14 @@ impl Search<'_> {
 
         let eval = tt.map_or(static_eval, |tt| tt.score);
 
+        let rfp_margin = match improving {
+            true => rfp_improving_margin(),
+            false => rfp_margin(),
+        };
         if !PV
             && pos.checkers().is_empty()
             && depth <= rfp_max_depth()
-            && eval >= beta + rfp_margin() * depth
+            && eval >= beta + rfp_margin * depth
         {
             return Some(eval);
         }

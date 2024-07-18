@@ -44,6 +44,7 @@ macro_rules! params {
 
 params! {
     rfp_margin: 0..=200 = 42;
+    rfp_improving_margin: 0..=200 = 32;
     rfp_max_depth: 1..=20 = 10;
     nmp_min_depth: 1..=10 = 4;
     nmp_divisor: 1..=500 = 137;
