@@ -47,7 +47,7 @@ fn main() {
                     tunable.default,
                     tunable.min,
                     tunable.max,
-                    (tunable.default as f64 * 0.2).abs().max(0.2)
+                    (tunable.max as f64 - tunable.min as f64) / 20.0
                 );
             }
         }
