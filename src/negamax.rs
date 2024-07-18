@@ -133,6 +133,7 @@ impl Search<'_> {
                 r -= ((scored_mv.history / lmr_history() as i32) as i16)
                     .clamp(-lmr_history_max(), lmr_history_max());
                 r -= PV as i16;
+                r -= improving as i16;
 
                 if r < 0 || !quiet {
                     r = 0;
