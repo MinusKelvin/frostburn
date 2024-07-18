@@ -109,8 +109,14 @@ impl Search<'_> {
 
             let quiet = !pos.colors(!pos.side_to_move()).has(scored_mv.mv.to);
 
-            if !PV && quiet && !best_score.losing() && i > lmp_limit {
-                continue;
+            if !PV && quiet && !best_score.losing() {
+                if i > lmp_limit {
+                    continue;
+                }
+
+                if depth <= fp_max_depth() && eval + fp_margin() * depth <= alpha {
+                    continue;
+                }
             }
 
             let mut new_pos = pos.clone();

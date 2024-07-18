@@ -62,4 +62,6 @@ params! {
     razor_max_depth: 1..=10 = 3;
     razor_base: 0..=1000 = 240;
     razor_margin: 0..=1000 = 56;
+    fp_max_depth: 1..=20 = 3;
+    fp_margin: 0..=500 = 130;
 }
