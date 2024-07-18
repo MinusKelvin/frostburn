@@ -48,8 +48,8 @@ impl TranspositionTable {
             .store(bytemuck::cast(entry), Ordering::Relaxed);
     }
 
-    pub fn raw(&mut self) -> &mut [AtomicU64] {
-        &mut self.table
+    pub fn raw(&self) -> &[AtomicU64] {
+        &self.table
     }
 
     fn slot(&self, hash: u64) -> &AtomicU64 {

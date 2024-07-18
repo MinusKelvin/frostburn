@@ -2,13 +2,14 @@ use std::collections::HashMap;
 use std::io::prelude::Write;
 use std::io::{stdin, stdout};
 use std::process::exit;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+use std::sync::{Arc, RwLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use cozy_chess::util::{display_uci_move, parse_uci_move};
 use cozy_chess::{Board, BoardBuilder, Color, Piece, Square};
-use frostburn::{Accumulator, Limits, LocalData, Search, SearchInfo, SharedData};
+use frostburn::{Accumulator, ClearTtBlock, Limits, LocalData, Search, SearchInfo, SharedData};
 
 mod bench;
 mod reproduce;
@@ -87,13 +88,26 @@ fn main() {
 }
 
 struct UciHandler {
+    shared_data: Arc<RwLock<(SearchConfig, SharedData)>>,
+    threads: Vec<(SyncSender<Command>, JoinHandle<()>)>,
+    tt_needs_clear: bool,
+}
+
+struct SearchConfig {
     position: Board,
     history: Vec<u64>,
     mv_format: MoveFormat,
-    local_data: Arc<Mutex<LocalData>>,
-    shared_data: Arc<RwLock<SharedData>>,
-    threads: Vec<JoinHandle<()>>,
-    randomize_eval: i16,
+    limits: Limits,
+
+    start: Instant,
+}
+
+enum Command {
+    Exit,
+    ClearTt(ClearTtBlock),
+    ResetData,
+    Search,
+    Rendezvous,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -104,15 +118,22 @@ enum MoveFormat {
 
 impl UciHandler {
     fn new() -> UciHandler {
-        UciHandler {
-            position: Board::startpos(),
-            history: vec![],
-            mv_format: MoveFormat::Standard,
-            local_data: Arc::new(Mutex::new(LocalData::new())),
-            shared_data: Arc::new(RwLock::new(SharedData::new(64))),
+        let mut this = UciHandler {
+            shared_data: Arc::new(RwLock::new((
+                SearchConfig {
+                    position: Board::startpos(),
+                    history: vec![],
+                    start: Instant::now(),
+                    mv_format: MoveFormat::Standard,
+                    limits: Limits::default(),
+                },
+                SharedData::new(64),
+            ))),
             threads: vec![],
-            randomize_eval: 0,
-        }
+            tt_needs_clear: true,
+        };
+        this.set_option(&mut "name Threads value 1".split_ascii_whitespace());
+        this
     }
 
     fn uci(&mut self, _: &mut TokenIter) {
@@ -120,6 +141,7 @@ impl UciHandler {
         println!("id author {}", env!("CARGO_PKG_AUTHORS"));
         println!("option name UCI_Chess960 type check default false");
         println!("option name Hash type spin min 1 max 1048576 default 64");
+        println!("option name Threads type spin min 1 max 1024 default 1");
         println!("option name Weaken_EvalNoise type spin min 0 max 10000 default 0");
         #[cfg(feature = "tunable")]
         for tunable in frostburn::TUNABLES {
@@ -132,6 +154,21 @@ impl UciHandler {
     }
 
     fn is_ready(&mut self, _: &mut TokenIter) {
+        if self.tt_needs_clear {
+            let blocks = self
+                .shared_data
+                .read()
+                .unwrap()
+                .1
+                .get_clear_tt_blocks(self.threads.len());
+            for ((send, _), block) in self.threads.iter().zip(blocks) {
+                send.send(Command::ClearTt(block)).unwrap();
+            }
+            for (send, _) in &self.threads {
+                send.send(Command::Rendezvous).unwrap();
+            }
+            self.tt_needs_clear = false;
+        }
         println!("readyok");
     }
 
@@ -141,9 +178,11 @@ impl UciHandler {
 
     fn set_option(&mut self, tokens: &mut TokenIter) {
         let _name_token = tokens.next();
+        let mut guard = self.shared_data.write().unwrap();
+        let (config, shared) = &mut *guard;
         match tokens.next().unwrap() {
             "UCI_Chess960" => {
-                self.mv_format = match tokens.nth(1).unwrap() {
+                config.mv_format = match tokens.nth(1).unwrap() {
                     "true" => MoveFormat::Chess960,
                     "false" => MoveFormat::Standard,
                     _ => panic!("invalid value for UCI_Chess960"),
@@ -151,10 +190,26 @@ impl UciHandler {
             }
             "Hash" => {
                 let mb = tokens.nth(1).unwrap().parse().unwrap();
-                *self.shared_data.write().unwrap() = SharedData::new(mb);
+                *shared = SharedData::new(mb);
+                self.tt_needs_clear = true;
+            }
+            "Threads" => {
+                let num = tokens.nth(1).unwrap().parse().unwrap();
+                for (send, t) in self.threads.drain(..) {
+                    send.send(Command::Exit).unwrap();
+                    t.join().unwrap();
+                }
+                for id in 0..num {
+                    let (send, recv) = sync_channel(0);
+                    let shared = self.shared_data.clone();
+                    self.threads.push((
+                        send,
+                        std::thread::spawn(move || search_thread(shared, recv, id)),
+                    ));
+                }
             }
             "Weaken_EvalNoise" => {
-                self.randomize_eval = tokens.nth(1).unwrap().parse().unwrap();
+                config.limits.randomize_eval = tokens.nth(1).unwrap().parse().unwrap();
             }
             #[cfg(feature = "tunable")]
             param => {
@@ -171,9 +226,11 @@ impl UciHandler {
 
     fn position(&mut self, tokens: &mut TokenIter) {
         let mut tokens = tokens.peekable();
+        let mut guard = self.shared_data.write().unwrap();
+        let (config, _) = &mut *guard;
 
         match tokens.next().unwrap() {
-            "startpos" => self.position = Board::startpos(),
+            "startpos" => config.position = Board::startpos(),
             "fen" => {
                 let mut fen = tokens
                     .by_ref()
@@ -182,45 +239,49 @@ impl UciHandler {
                 fen += tokens.next_if(|&tok| tok != "moves").unwrap_or("0");
                 fen += " ";
                 fen += tokens.next_if(|&tok| tok != "moves").unwrap_or("1");
-                self.position = fen.trim().parse().unwrap();
+                config.position = fen.trim().parse().unwrap();
             }
             unknown => panic!("unknown position type {unknown}"),
         }
 
-        self.history.clear();
+        config.history.clear();
 
         let _moves_token = tokens.next();
 
         while let Some(mv) = tokens.next() {
-            let mv = match self.mv_format {
-                MoveFormat::Standard => parse_uci_move(&self.position, mv).unwrap(),
+            let mv = match config.mv_format {
+                MoveFormat::Standard => parse_uci_move(&config.position, mv).unwrap(),
                 MoveFormat::Chess960 => mv.parse().unwrap(),
             };
 
-            self.history.push(self.position.hash());
-            self.position.play(mv);
+            config.history.push(config.position.hash());
+            config.position.play(mv);
         }
     }
 
     fn new_game(&mut self, _: &mut TokenIter) {
-        self.local_data = Arc::new(Mutex::new(LocalData::new()));
-        self.shared_data.write().unwrap().clear_tt();
+        for (send, _) in &self.threads {
+            send.send(Command::ResetData).unwrap();
+        }
+        self.tt_needs_clear = true;
     }
 
     fn stop(&mut self, _: &mut TokenIter) {
-        self.shared_data.read().unwrap().abort();
-        for thread in self.threads.drain(..) {
-            thread.join().unwrap();
+        self.shared_data.read().unwrap().1.abort();
+        for (send, _) in &self.threads {
+            send.send(Command::Rendezvous).unwrap();
         }
     }
 
     fn eval(&mut self, _: &mut TokenIter) {
         let mut acc = Accumulator::new();
-        let static_eval = acc.infer(&self.position);
+        let guard = self.shared_data.read().unwrap();
+        let config = &guard.0;
+        let static_eval = acc.infer(&config.position);
         let mut others = [None; 64];
-        let remove_pieces = self.position.occupied() - self.position.pieces(Piece::King);
+        let remove_pieces = config.position.occupied() - config.position.pieces(Piece::King);
         for sq in remove_pieces {
-            let mut board = BoardBuilder::from_board(&self.position);
+            let mut board = BoardBuilder::from_board(&config.position);
             board.board[sq as usize] = None;
             board.castle_rights[0].short = None;
             board.castle_rights[0].long = None;
@@ -239,11 +300,11 @@ impl UciHandler {
 
                     match l {
                         0 => print!("+-------"),
-                        1 if self.position.occupied().has(sq) => {
+                        1 if config.position.occupied().has(sq) => {
                             print!(
                                 "|  {} {}  ",
-                                self.position.color_on(sq).unwrap(),
-                                self.position.piece_on(sq).unwrap()
+                                config.position.color_on(sq).unwrap(),
+                                config.position.piece_on(sq).unwrap(),
                             );
                         }
                         1 => print!("|       "),
@@ -270,13 +331,17 @@ impl UciHandler {
     }
 
     fn go(&mut self, tokens: &mut TokenIter) {
-        self.stop(tokens);
+        self.shared_data.read().unwrap().1.abort();
 
         let start = Instant::now();
-        let white = self.position.side_to_move() == Color::White;
 
-        let mut limits = Limits::default();
-        limits.randomize_eval = self.randomize_eval;
+        let mut guard = self.shared_data.write().unwrap();
+        let (config, shared) = &mut *guard;
+
+        let white = config.position.side_to_move() == Color::White;
+
+        config.limits.unbounded();
+        config.start = start;
 
         while let Some(limit_verb) = tokens.next() {
             let mut number = |if_negative: u64| {
@@ -289,48 +354,22 @@ impl UciHandler {
                     .unwrap_or(if_negative)
             };
             match limit_verb {
-                "movetime" => limits.move_time = Some(Duration::from_millis(number(0))),
-                "depth" => limits.depth = Some(number(0) as i16),
-                "nodes" => limits.nodes = Some(number(0)),
-                "minnodes" => limits.min_nodes = Some(number(0)),
-                "wtime" if white => limits.clock = Some(Duration::from_millis(number(0))),
-                "btime" if !white => limits.clock = Some(Duration::from_millis(number(0))),
+                "movetime" => config.limits.move_time = Some(Duration::from_millis(number(0))),
+                "depth" => config.limits.depth = Some(number(0) as i16),
+                "nodes" => config.limits.nodes = Some(number(0)),
+                "minnodes" => config.limits.min_nodes = Some(number(0)),
+                "wtime" if white => config.limits.clock = Some(Duration::from_millis(number(0))),
+                "btime" if !white => config.limits.clock = Some(Duration::from_millis(number(0))),
                 _ => {}
             }
         }
 
-        self.shared_data.write().unwrap().prepare_for_search();
+        shared.prepare_for_search();
 
-        let root = self.position.clone();
-        let history = self.history.clone();
-        let local = self.local_data.clone();
-        let shared = self.shared_data.clone();
-        let mv_format = self.mv_format;
-        self.threads.push(std::thread::spawn(move || {
-            Search {
-                root: &root,
-                history,
-                clock: &|| start.elapsed(),
-                info: &mut |info| {
-                    print_info(&root, mv_format, &info);
-
-                    if info.finished {
-                        match mv_format {
-                            MoveFormat::Standard => {
-                                println!("bestmove {}", display_uci_move(&root, info.pv[0]))
-                            }
-                            MoveFormat::Chess960 => println!("bestmove {}", info.pv[0]),
-                        }
-                    }
-
-                    stdout().flush().unwrap();
-                },
-                data: &mut local.lock().unwrap(),
-                shared: &shared.read().unwrap(),
-                limits,
-            }
-            .search()
-        }));
+        drop(guard);
+        for (send, _) in &self.threads {
+            send.send(Command::Search).unwrap();
+        }
     }
 }
 
@@ -354,4 +393,70 @@ fn print_info(root: &Board, mv_format: MoveFormat, info: &SearchInfo) {
     }
 
     println!();
+}
+
+fn search_thread(
+    shared_data: Arc<RwLock<(SearchConfig, SharedData)>>,
+    command: Receiver<Command>,
+    id: usize,
+) {
+    let mut local_data = LocalData::new();
+    loop {
+        match command.recv().unwrap_or(Command::Exit) {
+            Command::Exit => return,
+            Command::ClearTt(range) => {
+                shared_data.read().unwrap().1.clear_tt_block(range);
+                continue;
+            }
+            Command::ResetData => {
+                local_data = LocalData::new();
+                continue;
+            }
+            Command::Rendezvous => continue,
+            Command::Search => {}
+        }
+
+        let guard = shared_data.read().unwrap();
+        let (config, shared) = &*guard;
+
+        let mut limits = config.limits;
+
+        let info: &mut dyn FnMut(SearchInfo) = match id {
+            0 => &mut |info| {
+                print_info(&config.position, config.mv_format, &info);
+
+                if info.finished {
+                    match config.mv_format {
+                        MoveFormat::Standard => println!(
+                            "bestmove {}",
+                            display_uci_move(&config.position, info.pv[0])
+                        ),
+                        MoveFormat::Chess960 => println!("bestmove {}", info.pv[0]),
+                    }
+                }
+
+                stdout().flush().unwrap();
+            },
+            _ => {
+                limits.unbounded();
+                &mut |_| {}
+            }
+        };
+
+        let clock: &dyn Fn() -> Duration = match id {
+            0 => &|| config.start.elapsed(),
+            _ => &|| Duration::ZERO,
+        };
+
+        Search {
+            root: &config.position,
+            history: config.history.clone(),
+            clock,
+            info,
+            data: &mut local_data,
+            shared,
+            limits,
+        }
+        .search()
+    }
 }

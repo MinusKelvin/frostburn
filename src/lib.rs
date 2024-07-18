@@ -3,6 +3,7 @@ extern crate alloc;
 
 use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use core::time::Duration;
+use std::ops::Range;
 
 use alloc::vec::Vec;
 use arrayvec::ArrayVec;
@@ -67,6 +68,16 @@ pub struct Limits {
     pub nodes: Option<u64>,
     pub min_nodes: Option<u64>,
     pub randomize_eval: i16,
+}
+
+impl Limits {
+    pub fn unbounded(&mut self) {
+        self.move_time = None;
+        self.clock = None;
+        self.depth = None;
+        self.nodes = None;
+        self.min_nodes = None;
+    }
 }
 
 pub struct SearchInfo<'a> {
@@ -167,11 +178,35 @@ impl SharedData {
         self.abort.store(true, Ordering::SeqCst);
     }
 
-    pub fn clear_tt(&mut self) {
-        bytemuck::fill_zeroes(self.tt.raw());
+    pub fn get_clear_tt_blocks(&self, count: usize) -> Vec<ClearTtBlock> {
+        let size = self.tt.raw().len();
+        let block_size = size / count;
+        let mut big = size - block_size * count;
+        let mut i = 0;
+        let mut blocks = vec![];
+        for _ in 0..count {
+            let mut upper = i + block_size;
+            if big > 0 {
+                big -= 1;
+                upper += 1;
+            }
+            blocks.push(ClearTtBlock { range: i..upper });
+            i = upper;
+        }
+        blocks
+    }
+
+    pub fn clear_tt_block(&self, block: ClearTtBlock) {
+        for slot in &self.tt.raw()[block.range] {
+            slot.store(0, Ordering::Relaxed);
+        }
     }
 
     fn log(&self, i: usize) -> f32 {
         self.log_table[i.min(self.log_table.len() - 1)]
     }
+}
+
+pub struct ClearTtBlock {
+    range: Range<usize>,
 }
