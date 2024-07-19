@@ -80,7 +80,6 @@ unsafe fn partial_update(
 }
 
 #[target_feature(enable = "avx2")]
-#[inline]
 unsafe fn fused_activate_dot(a: &[i16; 512], w: &[i16; 512]) -> __m256i {
     let a: *const __m256i = a.as_ptr().cast();
     let w: *const __m256i = w.as_ptr().cast();
