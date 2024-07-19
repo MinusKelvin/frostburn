@@ -30,7 +30,10 @@ impl Search<'_> {
             self.limits.move_time = Some(clock / 2);
         }
 
-        let soft_time_limit = self.limits.clock.map(|clock| clock / tm_soft_limit() as u32);
+        let soft_time_limit = self
+            .limits
+            .clock
+            .map(|clock| clock / tm_soft_limit() as u32 + self.limits.increment / 2);
 
         for new_depth in 1.. {
             let mut delta = asp_initial() as i32;

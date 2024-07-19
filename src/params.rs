@@ -60,6 +60,6 @@ params! {
     asp_widening: 1..=200 = 101;
     tm_soft_limit: 2..=200 = 26;
     razor_max_depth: 1..=10 = 3;
-    razor_base: 0..=1000 = 240;
-    razor_margin: 0..=1000 = 56;
+    razor_base: 0..=500 = 240;
+    razor_margin: 0..=200 = 56;
 }

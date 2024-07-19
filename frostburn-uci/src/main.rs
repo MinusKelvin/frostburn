@@ -360,6 +360,8 @@ impl UciHandler {
                 "minnodes" => config.limits.min_nodes = Some(number(0)),
                 "wtime" if white => config.limits.clock = Some(Duration::from_millis(number(0))),
                 "btime" if !white => config.limits.clock = Some(Duration::from_millis(number(0))),
+                "winc" if white => config.limits.increment = Duration::from_millis(number(0)),
+                "binc" if !white => config.limits.increment = Duration::from_millis(number(0)),
                 _ => {}
             }
         }

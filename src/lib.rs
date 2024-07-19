@@ -64,6 +64,7 @@ pub struct Search<'a> {
 pub struct Limits {
     pub move_time: Option<Duration>,
     pub clock: Option<Duration>,
+    pub increment: Duration,
     pub depth: Option<i16>,
     pub nodes: Option<u64>,
     pub min_nodes: Option<u64>,
@@ -77,6 +78,7 @@ impl Limits {
         self.depth = None;
         self.nodes = None;
         self.min_nodes = None;
+        self.increment = Duration::ZERO;
     }
 }
 
