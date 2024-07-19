@@ -44,8 +44,10 @@ impl Search<'_> {
             };
 
             let mut result;
+            let mut fail_highs = 0;
             loop {
-                result = self.negamax::<true>(self.root, lower, upper, new_depth, 0);
+                result =
+                    self.negamax::<true>(self.root, lower, upper, new_depth - fail_highs / 2, 0);
 
                 let Some(result) = result else {
                     break;
@@ -53,7 +55,10 @@ impl Search<'_> {
 
                 match () {
                     _ if result <= lower => lower = result - delta,
-                    _ if result >= upper => upper = result + delta,
+                    _ if result >= upper => {
+                        fail_highs += 1;
+                        upper = result + delta;
+                    }
                     _ => break,
                 }
 
