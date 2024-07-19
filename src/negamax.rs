@@ -134,6 +134,7 @@ impl Search<'_> {
                     .clamp(-lmr_history_max(), lmr_history_max());
                 r -= PV as i16;
                 r -= improving as i16;
+                r -= !new_pos.checkers().is_empty() as i16;
 
                 if r < 0 || !quiet {
                     r = 0;
