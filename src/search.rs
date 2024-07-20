@@ -53,13 +53,14 @@ impl Search<'_> {
                     break;
                 };
 
-                match () {
-                    _ if result <= lower => lower = result - delta,
-                    _ if result >= upper => {
-                        fail_highs += 1;
-                        upper = result + delta;
-                    }
-                    _ => break,
+                if result <= lower {
+                    lower = result - delta;
+                    upper = upper - (upper - lower) / 2;
+                } else if result >= upper {
+                    fail_highs += 1;
+                    upper = result + delta;
+                } else {
+                    break;
                 }
 
                 delta += delta * asp_widening() as i32 / 100;
