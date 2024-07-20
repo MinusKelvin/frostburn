@@ -54,7 +54,10 @@ impl Search<'_> {
                 };
 
                 match () {
-                    _ if result <= lower => lower = result - delta,
+                    _ if result <= lower => {
+                        upper = upper - (upper - lower) / 2;
+                        lower = result - delta;
+                    }
                     _ if result >= upper => {
                         fail_highs += 1;
                         upper = result + delta;
