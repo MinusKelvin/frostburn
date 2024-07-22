@@ -115,6 +115,7 @@ impl Search<'_> {
 
             let mut new_pos = pos.clone();
             new_pos.play_unchecked(scored_mv.mv);
+            self.shared.tt.prefetch(new_pos.hash());
             self.data.pv_table[ply + 1].clear();
             self.data.prev_moves[ply] = Some((scored_mv.mv, piece));
 

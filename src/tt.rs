@@ -41,6 +41,14 @@ impl TranspositionTable {
         (data.lower_hash_bits == hash as u16).then_some(data)
     }
 
+    pub fn prefetch(&self, hash: u64) {
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            use std::arch::x86_64::*;
+            _mm_prefetch::<_MM_HINT_T0>((self.slot(hash) as *const AtomicU64).cast());
+        }
+    }
+
     pub fn store(&self, hash: u64, _ply: usize, mut entry: TtEntry) {
         entry.lower_hash_bits = hash as u16;
         entry.score = entry.score.clamp_nonmate();
