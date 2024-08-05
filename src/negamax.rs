@@ -23,6 +23,8 @@ impl Search<'_> {
         let tt = self.shared.tt.load(pos.hash(), ply);
         let tt_mv = tt.map(|tt| tt.mv.into());
 
+        let tt_noisy = tt_mv.is_some_and(|mv: Move| pos.colors(!pos.side_to_move()).has(mv.to));
+
         match tt {
             _ if PV => {}
             Some(tt) if depth > tt.depth as i16 => {}
@@ -135,6 +137,7 @@ impl Search<'_> {
                 r -= PV as i16;
                 r -= improving as i16;
                 r -= !new_pos.checkers().is_empty() as i16;
+                r += tt_noisy as i16;
 
                 if r < 0 || !quiet {
                     r = 0;
