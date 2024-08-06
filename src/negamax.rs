@@ -109,7 +109,7 @@ impl Search<'_> {
 
             let quiet = !pos.colors(!pos.side_to_move()).has(scored_mv.mv.to);
 
-            if !PV && quiet && !best_score.losing() && i > lmp_limit {
+            if quiet && !best_score.losing() && i > lmp_limit {
                 continue;
             }
 
