@@ -136,7 +136,7 @@ impl Search<'_> {
                 r -= improving as i16;
                 r -= !new_pos.checkers().is_empty() as i16;
 
-                if r < 0 || !quiet {
+                if r < 0 {
                     r = 0;
                 }
 
