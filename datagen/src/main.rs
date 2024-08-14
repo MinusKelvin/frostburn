@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 use cozy_chess::{Board, GameStatus};
 use datafmt::{DataWriter, Game};
-use frostburn::{Limits, LocalData, Search, SharedData};
+use frostburn::{Eval, Limits, LocalData, Search, SharedData};
 use rand::prelude::*;
 use structopt::StructOpt;
 
@@ -122,7 +122,7 @@ fn play_game(
 
     loop {
         let idx = board.side_to_move() as usize;
-        let mut mv = None;
+        let mut result = None;
         shared[idx].prepare_for_search();
         Search {
             root: &board,
@@ -130,7 +130,7 @@ fn play_game(
             clock: &|| Duration::ZERO,
             info: &mut |info| {
                 if info.finished {
-                    mv = Some(info.pv[0]);
+                    result = Some((info.pv[0], info.score));
                 }
             },
             data: &mut local[idx],
@@ -139,11 +139,20 @@ fn play_game(
         }
         .search();
 
-        let mv = mv.unwrap_or_else(|| panic!("no move in position {board}"));
+        let (mv, score) = result.unwrap_or_else(|| panic!("no move in position {board}"));
 
         history.push(board.hash());
         board.play(mv);
         game.moves.push(mv);
+
+        if score < Eval::cp(-1000) {
+            game.winner = Some(board.side_to_move());
+            return game
+        }
+        if score > Eval::cp(1000) {
+            game.winner = Some(!board.side_to_move());
+            return game;
+        }
 
         match board.status() {
             GameStatus::Won => {
