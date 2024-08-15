@@ -13,6 +13,7 @@ impl Search<'_> {
         beta: Eval,
         depth: i16,
         ply: usize,
+        expect_cut: bool,
     ) -> Option<Eval> {
         if depth <= 0 || ply >= MAX_PLY {
             return self.qsearch(pos, alpha, beta, ply);
@@ -68,8 +69,14 @@ impl Search<'_> {
             let r = (eval - beta + depth as i32 * nmp_depth() as i32 + nmp_constant() as i32)
                 / nmp_divisor() as i32;
             self.data.prev_moves[ply] = None;
-            let score =
-                self.search_opp::<false>(&new_pos, beta - 1, beta, depth - r as i16, ply + 1)?;
+            let score = self.search_opp::<false>(
+                &new_pos,
+                beta - 1,
+                beta,
+                depth - r as i16,
+                ply + 1,
+                false,
+            )?;
             if score >= beta {
                 if score.is_mate() {
                     return Some(beta);
@@ -122,7 +129,8 @@ impl Search<'_> {
             if ply != 0 && self.history.contains(&new_pos.hash()) {
                 score = Eval::cp(0);
             } else if PV && i == 0 {
-                score = self.search_opp::<true>(&new_pos, alpha, beta, depth - 1, ply + 1)?;
+                score =
+                    self.search_opp::<true>(&new_pos, alpha, beta, depth - 1, ply + 1, false)?;
             } else {
                 let base_r = self.shared.log(i)
                     * self.shared.log(depth as usize)
@@ -135,21 +143,35 @@ impl Search<'_> {
                 r -= PV as i16;
                 r -= improving as i16;
                 r -= !new_pos.checkers().is_empty() as i16;
+                r += expect_cut as i16;
 
                 if r < 0 || !quiet {
                     r = 0;
                 }
 
-                score =
-                    self.search_opp::<false>(&new_pos, alpha, alpha + 1, depth - r - 1, ply + 1)?;
+                score = self.search_opp::<false>(
+                    &new_pos,
+                    alpha,
+                    alpha + 1,
+                    depth - r - 1,
+                    ply + 1,
+                    true,
+                )?;
 
                 if r > 0 && score > alpha {
-                    score =
-                        self.search_opp::<false>(&new_pos, alpha, alpha + 1, depth - 1, ply + 1)?;
+                    score = self.search_opp::<false>(
+                        &new_pos,
+                        alpha,
+                        alpha + 1,
+                        depth - 1,
+                        ply + 1,
+                        !expect_cut,
+                    )?;
                 }
 
                 if PV && score > alpha {
-                    score = self.search_opp::<true>(&new_pos, alpha, beta, depth - 1, ply + 1)?;
+                    score =
+                        self.search_opp::<true>(&new_pos, alpha, beta, depth - 1, ply + 1, false)?;
                 }
             }
 
@@ -240,8 +262,9 @@ impl Search<'_> {
         beta: Eval,
         depth: i16,
         ply: usize,
+        expect_cut: bool,
     ) -> Option<Eval> {
-        self.negamax::<PV>(pos, -beta, -alpha, depth, ply)
+        self.negamax::<PV>(pos, -beta, -alpha, depth, ply, expect_cut)
             .map(|e| -e)
     }
 }

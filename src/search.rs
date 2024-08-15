@@ -46,8 +46,14 @@ impl Search<'_> {
             let mut result;
             let mut fail_highs = 0;
             loop {
-                result =
-                    self.negamax::<true>(self.root, lower, upper, new_depth - fail_highs / 2, 0);
+                result = self.negamax::<true>(
+                    self.root,
+                    lower,
+                    upper,
+                    new_depth - fail_highs / 2,
+                    0,
+                    false,
+                );
 
                 let Some(result) = result else {
                     break;
