@@ -1,8 +1,6 @@
 use arrayvec::ArrayVec;
 use cozy_chess::{BitBoard, Board, Color, Piece, Square};
 
-use crate::Eval;
-
 #[cfg(target_arch = "x86_64")]
 mod avx2;
 
@@ -50,7 +48,7 @@ impl Accumulator {
         }
     }
 
-    pub fn infer(&mut self, board: &Board) -> Eval {
+    pub fn infer(&mut self, board: &Board) -> i16 {
         let mut updates = Updates::default();
         for color in Color::ALL {
             for piece in Piece::ALL {
@@ -83,7 +81,7 @@ impl Accumulator {
         #[cfg(feature = "check-inference")]
         assert_eq!(result, reference);
 
-        Eval::cp((result / 64).clamp(-29_000, 29_000) as i16)
+        (result / 64).clamp(-29_000, 29_000) as i16
     }
 }
 

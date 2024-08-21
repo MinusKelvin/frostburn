@@ -60,7 +60,7 @@ pub struct Search<'a> {
     pub limits: Limits,
 }
 
-#[derive(Default, Copy, Clone)]
+#[derive(Copy, Clone)]
 pub struct Limits {
     pub move_time: Option<Duration>,
     pub clock: Option<Duration>,
@@ -69,6 +69,7 @@ pub struct Limits {
     pub nodes: Option<u64>,
     pub min_nodes: Option<u64>,
     pub randomize_eval: i16,
+    pub quantize_eval: i16,
 }
 
 impl Limits {
@@ -79,6 +80,21 @@ impl Limits {
         self.nodes = None;
         self.min_nodes = None;
         self.increment = Duration::ZERO;
+    }
+}
+
+impl Default for Limits {
+    fn default() -> Self {
+        Self {
+            move_time: None,
+            clock: None,
+            increment: Duration::ZERO,
+            depth: None,
+            nodes: None,
+            min_nodes: None,
+            randomize_eval: 0,
+            quantize_eval: 1,
+        }
     }
 }
 
@@ -128,15 +144,18 @@ impl Search<'_> {
     }
 
     fn eval(&mut self, board: &Board) -> Eval {
-        let base = self.data.accumulator.infer(board);
+        let mut eval = self.data.accumulator.infer(board);
+        if self.limits.quantize_eval != 1 {
+            let offset = self.limits.quantize_eval / 2 * eval.signum();
+            eval = (eval + offset) / self.limits.quantize_eval * self.limits.quantize_eval;
+        }
         if self.limits.randomize_eval != 0 {
             let hash = self.shared.seed ^ board.hash();
             let range = self.limits.randomize_eval as u128 * 2 + 1;
             let offset = ((range * hash as u128) >> 64) as i16 - self.limits.randomize_eval;
-            base + offset
-        } else {
-            base
+            eval += offset;
         }
+        Eval::cp(eval)
     }
 }
 
