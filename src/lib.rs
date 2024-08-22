@@ -68,8 +68,7 @@ pub struct Limits {
     pub depth: Option<i16>,
     pub nodes: Option<u64>,
     pub min_nodes: Option<u64>,
-    pub randomize_eval: i16,
-    pub quantize_eval: i16,
+    pub weaken_eval: i16,
 }
 
 impl Limits {
@@ -92,8 +91,7 @@ impl Default for Limits {
             depth: None,
             nodes: None,
             min_nodes: None,
-            randomize_eval: 0,
-            quantize_eval: 1,
+            weaken_eval: 0,
         }
     }
 }
@@ -145,15 +143,15 @@ impl Search<'_> {
 
     fn eval(&mut self, board: &Board) -> Eval {
         let mut eval = self.data.accumulator.infer(board);
-        if self.limits.quantize_eval != 1 {
-            let offset = self.limits.quantize_eval / 2 * eval.signum();
-            eval = (eval + offset) / self.limits.quantize_eval * self.limits.quantize_eval;
-        }
-        if self.limits.randomize_eval != 0 {
+        if self.limits.weaken_eval > 0 {
+            // more fair and continuous version of replacing low-order bits with noise
+            let quant = self.limits.weaken_eval + 1;
+            let rounding_offset = quant / 2 * eval.signum();
+            eval = (eval + rounding_offset) / quant * quant;
+
             let hash = self.shared.seed ^ board.hash();
-            let range = self.limits.randomize_eval as u128 * 2 + 1;
-            let offset = ((range * hash as u128) >> 64) as i16 - self.limits.randomize_eval;
-            eval += offset;
+            let noise = ((quant as u128 * hash as u128) >> 64) as i16;
+            eval += noise - quant / 2;
         }
         Eval::cp(eval)
     }
