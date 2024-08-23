@@ -135,6 +135,7 @@ impl Search<'_> {
                 r -= PV as i16;
                 r -= improving as i16;
                 r -= !new_pos.checkers().is_empty() as i16;
+                r += tt_mv.is_some_and(|mv| pos.colors(!pos.side_to_move()).has(mv.to)) as i16;
 
                 if r < 0 || !quiet {
                     r = 0;
