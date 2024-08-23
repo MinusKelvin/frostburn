@@ -68,7 +68,6 @@ pub struct Limits {
     pub depth: Option<i16>,
     pub nodes: Option<u64>,
     pub min_nodes: Option<u64>,
-    pub randomize_eval: i16,
     pub quantize_eval: i16,
 }
 
@@ -92,7 +91,6 @@ impl Default for Limits {
             depth: None,
             nodes: None,
             min_nodes: None,
-            randomize_eval: 0,
             quantize_eval: 1,
         }
     }
@@ -148,12 +146,6 @@ impl Search<'_> {
         if self.limits.quantize_eval != 1 {
             let offset = self.limits.quantize_eval / 2 * eval.signum();
             eval = (eval + offset) / self.limits.quantize_eval * self.limits.quantize_eval;
-        }
-        if self.limits.randomize_eval != 0 {
-            let hash = self.shared.seed ^ board.hash();
-            let range = self.limits.randomize_eval as u128 * 2 + 1;
-            let offset = ((range * hash as u128) >> 64) as i16 - self.limits.randomize_eval;
-            eval += offset;
         }
         Eval::cp(eval)
     }

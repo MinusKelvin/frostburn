@@ -142,8 +142,7 @@ impl UciHandler {
         println!("option name UCI_Chess960 type check default false");
         println!("option name Hash type spin min 1 max 1048576 default 64");
         println!("option name Threads type spin min 1 max 1024 default 1");
-        println!("option name Weaken_EvalNoise type spin min 0 max 10000 default 0");
-        println!("option name Weaken_EvalQuantize type spin min 1 max 10000 default 1");
+        println!("option name Weaken_Eval type spin min 0 max 10000 default 0");
         #[cfg(feature = "tunable")]
         for tunable in frostburn::TUNABLES {
             println!(
@@ -209,11 +208,8 @@ impl UciHandler {
                     ));
                 }
             }
-            "Weaken_EvalNoise" => {
-                config.limits.randomize_eval = tokens.nth(1).unwrap().parse().unwrap();
-            }
-            "Weaken_EvalQuantize" => {
-                config.limits.quantize_eval = tokens.nth(1).unwrap().parse().unwrap();
+            "Weaken_Eval" => {
+                config.limits.quantize_eval = tokens.nth(1).unwrap().parse::<i16>().unwrap() + 1;
             }
             #[cfg(feature = "tunable")]
             param => {
