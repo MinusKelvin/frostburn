@@ -7,7 +7,7 @@ use std::process::exit;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use cozy_chess::{Board, GameStatus};
+use cozy_chess::{Board, Color, GameStatus};
 use datafmt::{DataWriter, Game};
 use frostburn::{Eval, Limits, LocalData, Search, SharedData};
 use rand::prelude::*;
@@ -147,7 +147,7 @@ fn play_game(
 
         if score < Eval::cp(-1000) {
             game.winner = Some(board.side_to_move());
-            return game
+            return game;
         }
         if score > Eval::cp(1000) {
             game.winner = Some(!board.side_to_move());
@@ -203,6 +203,21 @@ fn pick_startpos() -> (Game, Board) {
         }
 
         if board.status() != GameStatus::Ongoing {
+            continue 'retry;
+        }
+
+        const MATERIAL: [i32; 6] = [1, 3, 3, 5, 9, 0];
+        let w_material: i32 = board
+            .colors(Color::White)
+            .iter()
+            .map(|sq| MATERIAL[board.piece_on(sq).unwrap() as usize])
+            .sum();
+        let b_material: i32 = board
+            .colors(Color::Black)
+            .iter()
+            .map(|sq| MATERIAL[board.piece_on(sq).unwrap() as usize])
+            .sum();
+        if w_material.abs_diff(b_material) >= 3 {
             continue 'retry;
         }
 
