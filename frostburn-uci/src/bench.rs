@@ -6,6 +6,9 @@ use frostburn::{Limits, LocalData, Search, SharedData};
 
 pub fn bench() {
     let mut shared = SharedData::new(8);
+    for block in shared.get_clear_tt_blocks(1) {
+        shared.clear_tt_block(block);
+    }
     let mut local = LocalData::new();
 
     let mut search_time = Duration::ZERO;

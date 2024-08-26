@@ -90,7 +90,6 @@ fn main() {
 struct UciHandler {
     shared_data: Arc<RwLock<(SearchConfig, SharedData)>>,
     threads: Vec<(SyncSender<Command>, JoinHandle<()>)>,
-    tt_needs_clear: bool,
 }
 
 struct SearchConfig {
@@ -130,7 +129,6 @@ impl UciHandler {
                 SharedData::new(64),
             ))),
             threads: vec![],
-            tt_needs_clear: true,
         };
         this.set_option(&mut "name Threads value 1".split_ascii_whitespace());
         this
@@ -154,21 +152,6 @@ impl UciHandler {
     }
 
     fn is_ready(&mut self, _: &mut TokenIter) {
-        if self.tt_needs_clear {
-            let blocks = self
-                .shared_data
-                .read()
-                .unwrap()
-                .1
-                .get_clear_tt_blocks(self.threads.len());
-            for ((send, _), block) in self.threads.iter().zip(blocks) {
-                send.send(Command::ClearTt(block)).unwrap();
-            }
-            for (send, _) in &self.threads {
-                send.send(Command::Rendezvous).unwrap();
-            }
-            self.tt_needs_clear = false;
-        }
         println!("readyok");
     }
 
@@ -191,7 +174,6 @@ impl UciHandler {
             "Hash" => {
                 let mb = tokens.nth(1).unwrap().parse().unwrap();
                 *shared = SharedData::new(mb);
-                self.tt_needs_clear = true;
             }
             "Threads" => {
                 let num = tokens.nth(1).unwrap().parse().unwrap();
@@ -263,7 +245,18 @@ impl UciHandler {
         for (send, _) in &self.threads {
             send.send(Command::ResetData).unwrap();
         }
-        self.tt_needs_clear = true;
+        let blocks = self
+            .shared_data
+            .read()
+            .unwrap()
+            .1
+            .get_clear_tt_blocks(self.threads.len());
+        for ((send, _), block) in self.threads.iter().zip(blocks) {
+            send.send(Command::ClearTt(block)).unwrap();
+        }
+        for (send, _) in &self.threads {
+            send.send(Command::Rendezvous).unwrap();
+        }
     }
 
     fn stop(&mut self, _: &mut TokenIter) {
@@ -331,8 +324,6 @@ impl UciHandler {
     }
 
     fn go(&mut self, tokens: &mut TokenIter) {
-        self.shared_data.read().unwrap().1.abort();
-
         let start = Instant::now();
 
         let mut guard = self.shared_data.write().unwrap();
