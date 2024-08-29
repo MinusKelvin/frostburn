@@ -27,6 +27,7 @@ impl<'a> MovePicker<'a> {
         board: &'a Board,
         data: &LocalData,
         tt_mv: Option<Move>,
+        excluded: Option<Move>,
         skip_quiets: bool,
         counter_hist: Option<&PieceHistory>,
         followup_hist: Option<&PieceHistory>,
@@ -47,6 +48,9 @@ impl<'a> MovePicker<'a> {
                 mvs.to &= opp;
             }
             for mv in mvs {
+                if excluded.is_some_and(|excluded| excluded == mv) {
+                    continue;
+                }
                 let mut see_score = 0;
                 let mut history = 0;
                 let mut score = match tt_mv {

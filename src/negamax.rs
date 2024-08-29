@@ -13,6 +13,7 @@ impl Search<'_> {
         beta: Eval,
         depth: i16,
         ply: usize,
+        excluded: Option<Move>,
     ) -> Option<Eval> {
         if depth <= 0 || ply >= MAX_PLY {
             return self.qsearch(pos, alpha, beta, ply);
@@ -20,7 +21,10 @@ impl Search<'_> {
 
         self.count_node_and_check_abort(false)?;
 
-        let tt = self.shared.tt.load(pos.hash(), ply);
+        let tt = match excluded {
+            Some(_) => None,
+            None => self.shared.tt.load(pos.hash(), ply),
+        };
         let tt_mv = tt.map(|tt| tt.mv.into());
 
         match tt {
@@ -37,44 +41,41 @@ impl Search<'_> {
             _ => depth,
         };
 
-        let static_eval = self.eval(pos);
+        let static_eval = match excluded {
+            None => self.eval(pos),
+            Some(_) => self.data.prev_evals[ply],
+        };
         self.data.prev_evals[ply] = static_eval;
         let improving =
             pos.checkers().is_empty() && ply > 1 && static_eval > self.data.prev_evals[ply - 2];
 
         let eval = tt.map_or(static_eval, |tt| tt.score);
 
-        if !PV
-            && pos.checkers().is_empty()
-            && depth <= rfp_max_depth()
-            && eval >= beta + rfp_margin() * depth
-        {
-            return Some(eval);
-        }
-
-        if !PV
-            && pos.checkers().is_empty()
-            && depth <= razor_max_depth()
-            && eval <= alpha - razor_margin() * depth - razor_base()
-        {
-            let score = self.qsearch(pos, alpha, beta, ply)?;
-            if score <= alpha {
-                return Some(score);
+        if !PV && excluded.is_none() && pos.checkers().is_empty() {
+            if depth <= rfp_max_depth() && eval >= beta + rfp_margin() * depth {
+                return Some(eval);
             }
-        }
 
-        if !PV && pos.checkers().is_empty() && eval >= beta && depth >= nmp_min_depth() {
-            let new_pos = pos.null_move().unwrap();
-            let r = (eval - beta + depth as i32 * nmp_depth() as i32 + nmp_constant() as i32)
-                / nmp_divisor() as i32;
-            self.data.prev_moves[ply] = None;
-            let score =
-                self.search_opp::<false>(&new_pos, beta - 1, beta, depth - r as i16, ply + 1)?;
-            if score >= beta {
-                if score.is_mate() {
-                    return Some(beta);
+            if depth <= razor_max_depth() && eval <= alpha - razor_margin() * depth - razor_base() {
+                let score = self.qsearch(pos, alpha, beta, ply)?;
+                if score <= alpha {
+                    return Some(score);
                 }
-                return Some(score);
+            }
+
+            if eval >= beta && depth >= nmp_min_depth() {
+                let new_pos = pos.null_move().unwrap();
+                let r = (eval - beta + depth as i32 * nmp_depth() as i32 + nmp_constant() as i32)
+                    / nmp_divisor() as i32;
+                self.data.prev_moves[ply] = None;
+                let score =
+                    self.search_opp::<false>(&new_pos, beta - 1, beta, depth - r as i16, ply + 1)?;
+                if score >= beta {
+                    if score.is_mate() {
+                        return Some(beta);
+                    }
+                    return Some(score);
+                }
             }
         }
 
@@ -88,6 +89,7 @@ impl Search<'_> {
             pos,
             &self.data,
             tt_mv,
+            excluded,
             false,
             self.data.counter_hist.get(counter_prior),
             self.data.followup_hist.get(followup_prior),
@@ -121,8 +123,34 @@ impl Search<'_> {
             let mut score;
             if ply != 0 && self.history.contains(&new_pos.hash()) {
                 score = Eval::cp(0);
-            } else if PV && i == 0 {
-                score = self.search_opp::<true>(&new_pos, alpha, beta, depth - 1, ply + 1)?;
+            } else if i == 0 {
+                let mut depth = depth;
+
+                if let Some(tt) = tt {
+                    if depth >= 7
+                        && ply > 0
+                        && tt.depth as i16 >= depth - 3
+                        && tt.bound.lower_or_exact()
+                        && !tt.score.is_mate()
+                        && tt_mv.is_some_and(|tt_mv| scored_mv.mv == tt_mv)
+                    {
+                        let singular_beta = tt.score - depth;
+                        let singular_score = self.negamax::<false>(
+                            pos,
+                            singular_beta - 1,
+                            singular_beta,
+                            (depth - 1) / 2,
+                            ply,
+                            Some(scored_mv.mv),
+                        )?;
+
+                        if singular_score < singular_beta {
+                            depth += 1;
+                        }
+                    }
+                }
+
+                score = self.search_opp::<PV>(&new_pos, alpha, beta, depth - 1, ply + 1)?;
             } else {
                 let base_r = self.shared.log(i)
                     * self.shared.log(depth as usize)
@@ -202,7 +230,7 @@ impl Search<'_> {
         self.history.pop();
 
         let Some(best_mv) = best_mv else {
-            if pos.checkers().is_empty() {
+            if pos.checkers().is_empty() && excluded.is_none() {
                 return Some(Eval::cp(0));
             } else {
                 return Some(Eval::mated(ply));
@@ -210,25 +238,27 @@ impl Search<'_> {
         };
 
         let bound = Bound::compute(orig_alpha, beta, best_score);
-        self.shared.tt.store(
-            pos.hash(),
-            ply,
-            TtEntry {
-                lower_hash_bits: 0,
-                mv: match bound {
-                    Bound::UPPER => tt_mv.unwrap_or(Move {
-                        from: Square::A1,
-                        to: Square::A1,
-                        promotion: None,
-                    }),
-                    _ => best_mv.into(),
-                }
-                .into(),
-                score: best_score,
-                depth: depth as u8,
-                bound,
-            },
-        );
+        if excluded.is_none() {
+            self.shared.tt.store(
+                pos.hash(),
+                ply,
+                TtEntry {
+                    lower_hash_bits: 0,
+                    mv: match bound {
+                        Bound::UPPER => tt_mv.unwrap_or(Move {
+                            from: Square::A1,
+                            to: Square::A1,
+                            promotion: None,
+                        }),
+                        _ => best_mv.into(),
+                    }
+                    .into(),
+                    score: best_score,
+                    depth: depth as u8,
+                    bound,
+                },
+            );
+        }
 
         Some(best_score)
     }
@@ -241,7 +271,7 @@ impl Search<'_> {
         depth: i16,
         ply: usize,
     ) -> Option<Eval> {
-        self.negamax::<PV>(pos, -beta, -alpha, depth, ply)
+        self.negamax::<PV>(pos, -beta, -alpha, depth, ply, None)
             .map(|e| -e)
     }
 }

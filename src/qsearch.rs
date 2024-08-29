@@ -38,7 +38,7 @@ impl Search<'_> {
             alpha = stand_pat;
         }
 
-        let mut move_picker = MovePicker::new(pos, &self.data, tt_mv, true, None, None);
+        let mut move_picker = MovePicker::new(pos, &self.data, tt_mv, None, true, None, None);
 
         if !move_picker.has_moves() {
             if pos.checkers().is_empty() {

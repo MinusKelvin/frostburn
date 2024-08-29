@@ -94,9 +94,9 @@ impl Bound {
         self.0 == 1
     }
 
-    // pub const fn lower_or_exact(self) -> bool {
-    //     self.0 & 2 != 0
-    // }
+    pub const fn lower_or_exact(self) -> bool {
+        self.0 & 2 != 0
+    }
 
     // pub const fn upper_or_exact(self) -> bool {
     //     self.0 & 1 != 0
