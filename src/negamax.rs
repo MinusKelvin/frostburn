@@ -1,5 +1,6 @@
 use cozy_chess::{Board, Move, Square};
 
+use crate::draw_oracle::draw_oracle;
 use crate::move_picker::MovePicker;
 use crate::params::*;
 use crate::tt::{Bound, TtEntry};
@@ -20,6 +21,10 @@ impl Search<'_> {
         }
 
         self.count_node_and_check_abort(false)?;
+
+        if ply != 0 && draw_oracle(pos) {
+            return Some(Eval::cp(0));
+        }
 
         let tt = match excluded {
             Some(_) => None,

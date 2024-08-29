@@ -1,5 +1,6 @@
 use cozy_chess::Board;
 
+use crate::draw_oracle::draw_oracle;
 use crate::move_picker::MovePicker;
 use crate::tt::{Bound, TtEntry};
 use crate::{Eval, Search, MAX_PLY};
@@ -13,6 +14,10 @@ impl Search<'_> {
         ply: usize,
     ) -> Option<Eval> {
         self.count_node_and_check_abort(false)?;
+
+        if draw_oracle(pos) {
+            return Some(Eval::cp(0));
+        }
 
         let tt = self.shared.tt.load(pos.hash(), ply);
         let tt_mv = tt.map(|tt| tt.mv.into());

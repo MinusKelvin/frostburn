@@ -20,6 +20,7 @@ mod params;
 mod qsearch;
 mod search;
 mod tt;
+mod draw_oracle;
 
 pub use crate::eval::Eval;
 pub use crate::nnue::Accumulator;
