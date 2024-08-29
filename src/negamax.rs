@@ -146,6 +146,9 @@ impl Search<'_> {
 
                         if singular_score < singular_beta {
                             depth += 1;
+                        } else if !PV && singular_score >= beta {
+                            self.history.pop();
+                            return Some(singular_score);
                         }
                     }
                 }
