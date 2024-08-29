@@ -62,4 +62,7 @@ params! {
     razor_max_depth: 1..=10 = 3;
     razor_base: 0..=500 = 240;
     razor_margin: 0..=200 = 56;
+    singular_min_depth: 0..=20 = 7;
+    singular_tt_depth: 0..=10 = 3;
+    singular_margin: 0..=500 = 100;
 }

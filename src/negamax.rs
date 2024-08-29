@@ -127,14 +127,14 @@ impl Search<'_> {
                 let mut depth = depth;
 
                 if let Some(tt) = tt {
-                    if depth >= 7
+                    if depth >= singular_min_depth()
                         && ply > 0
-                        && tt.depth as i16 >= depth - 3
+                        && tt.depth as i16 >= depth - singular_tt_depth()
                         && tt.bound.lower_or_exact()
                         && !tt.score.is_mate()
                         && tt_mv.is_some_and(|tt_mv| scored_mv.mv == tt_mv)
                     {
-                        let singular_beta = tt.score - depth;
+                        let singular_beta = tt.score - depth * singular_margin() / 100;
                         let singular_score = self.negamax::<false>(
                             pos,
                             singular_beta - 1,
