@@ -68,6 +68,7 @@ fn main() {
             cmds.insert("ucinewgame", UciHandler::new_game);
             cmds.insert("stop", UciHandler::stop);
             cmds.insert("eval", UciHandler::eval);
+            cmds.insert("wait", UciHandler::wait);
 
             let mut uci = UciHandler::new();
             let mut buf = String::new();
@@ -261,6 +262,12 @@ impl UciHandler {
 
     fn stop(&mut self, _: &mut TokenIter) {
         self.shared_data.read().unwrap().1.abort();
+        for (send, _) in &self.threads {
+            send.send(Command::Rendezvous).unwrap();
+        }
+    }
+
+    fn wait(&mut self, _: &mut TokenIter) {
         for (send, _) in &self.threads {
             send.send(Command::Rendezvous).unwrap();
         }
