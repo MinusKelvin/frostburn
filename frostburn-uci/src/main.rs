@@ -368,8 +368,9 @@ impl UciHandler {
 
 fn print_info(root: &Board, mv_format: MoveFormat, info: &SearchInfo) {
     print!(
-        "info depth {d} score {s} nodes {n} time {t} nps {nps} pv",
+        "info depth {d} seldepth {sd} score {s} nodes {n} time {t} nps {nps} pv",
         d = info.depth,
+        sd = info.selective_depth,
         s = info.score,
         n = info.nodes,
         t = info.time.as_millis(),

@@ -10,7 +10,9 @@ impl Search<'_> {
         let mut score = Eval::cp(0);
         let mut pv = ArrayVec::new();
         let mut depth = 0;
+
         self.data.on_first_depth = true;
+        self.data.local_seldepth = 0;
 
         // simplify history so we can detect 2-fold
         let start =
@@ -83,6 +85,7 @@ impl Search<'_> {
 
             let mut finished = result.is_none() || self.count_node_and_check_abort(true).is_none();
             let nodes = self.shared.nodes.load(Ordering::SeqCst);
+            let seldepth = self.shared.selective_depth.load(Ordering::SeqCst);
 
             let time = (self.clock)();
 
@@ -102,6 +105,7 @@ impl Search<'_> {
                 time,
                 pv: &pv,
                 finished,
+                selective_depth: seldepth,
             };
             (self.info)(info);
 

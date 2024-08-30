@@ -1,3 +1,5 @@
+use std::sync::atomic::Ordering;
+
 use cozy_chess::{Board, Move, Square};
 
 use crate::move_picker::MovePicker;
@@ -20,6 +22,11 @@ impl Search<'_> {
         }
 
         self.count_node_and_check_abort(false)?;
+
+        if ply as i16 > self.data.local_seldepth {
+            self.data.local_seldepth = ply as i16;
+            self.shared.selective_depth.fetch_max(ply as i16 + 1, Ordering::Relaxed);
+        }
 
         let tt = match excluded {
             Some(_) => None,

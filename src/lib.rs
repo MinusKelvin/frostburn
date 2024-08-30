@@ -4,6 +4,7 @@ extern crate alloc;
 use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use core::time::Duration;
 use std::ops::Range;
+use std::sync::atomic::AtomicI16;
 
 use alloc::vec::Vec;
 use arrayvec::ArrayVec;
@@ -34,6 +35,7 @@ pub struct LocalData {
     pv_table: [ArrayVec<Move, MAX_PLY>; MAX_PLY + 1],
     on_first_depth: bool,
     local_nodes: u64,
+    local_seldepth: i16,
     accumulator: Accumulator,
     history: PieceHistory,
     counter_hist: ContinuationHistory,
@@ -45,6 +47,7 @@ pub struct LocalData {
 pub struct SharedData {
     abort: AtomicBool,
     nodes: AtomicU64,
+    selective_depth: AtomicI16,
     tt: TranspositionTable,
     log_table: [f32; 32],
     pub seed: u64,
@@ -98,6 +101,7 @@ impl Default for Limits {
 
 pub struct SearchInfo<'a> {
     pub depth: i16,
+    pub selective_depth: i16,
     pub score: Eval,
     pub nodes: u64,
     pub time: Duration,
@@ -157,6 +161,7 @@ impl LocalData {
             pv_table: [(); MAX_PLY + 1].map(|_| ArrayVec::new()),
             on_first_depth: false,
             local_nodes: 0,
+            local_seldepth: 0,
             accumulator: Accumulator::new(),
             history: PieceHistory::new(),
             counter_hist: ContinuationHistory::new(),
@@ -176,6 +181,7 @@ impl SharedData {
         SharedData {
             abort: AtomicBool::new(false),
             nodes: AtomicU64::new(0),
+            selective_depth: AtomicI16::new(0),
             tt: TranspositionTable::new(tt_mb),
             seed: 0x6CA648710DB5F3AE,
             log_table,
@@ -185,6 +191,7 @@ impl SharedData {
     pub fn prepare_for_search(&mut self) {
         *self.abort.get_mut() = false;
         *self.nodes.get_mut() = 0;
+        *self.selective_depth.get_mut() = 0;
     }
 
     pub fn abort(&self) {
