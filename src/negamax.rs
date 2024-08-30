@@ -58,7 +58,7 @@ impl Search<'_> {
 
         let eval = tt.map_or(static_eval, |tt| tt.score);
 
-        if !PV && excluded.is_none() && pos.checkers().is_empty() && !beta.is_mate() {
+        if !PV && excluded.is_none() && pos.checkers().is_empty() {
             if depth <= rfp_max_depth() && eval >= beta + rfp_margin() * depth {
                 return Some(eval);
             }
@@ -78,10 +78,11 @@ impl Search<'_> {
                 let score =
                     self.search_opp::<false>(&new_pos, beta - 1, beta, depth - r as i16, ply + 1)?;
                 if score >= beta {
-                    if score.is_mate() {
-                        return Some(beta);
-                    }
-                    return Some(score);
+                    return Some(match () {
+                        _ if score.losing() => score.clamp_nonmate(),
+                        _ if score.is_mate() => beta,
+                        _ => score
+                    });
                 }
             }
         }
