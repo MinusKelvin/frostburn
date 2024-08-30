@@ -58,7 +58,7 @@ impl Search<'_> {
 
         let eval = tt.map_or(static_eval, |tt| tt.score);
 
-        if !PV && excluded.is_none() && pos.checkers().is_empty() {
+        if !PV && excluded.is_none() && pos.checkers().is_empty() && !beta.is_mate() {
             if depth <= rfp_max_depth() && eval >= beta + rfp_margin() * depth {
                 return Some(eval);
             }

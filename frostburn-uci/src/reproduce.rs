@@ -43,7 +43,9 @@ pub fn reproduce(side: Color, mb: usize) {
             print!("{last_mvnum}.. ");
         }
 
-        let mv = parse_san_move(&board, tokens.next().unwrap()).unwrap();
+        let Ok(mv) = parse_san_move(&board, tokens.next().unwrap()) else {
+            break;
+        };
         let nodes = tokens
             .by_ref()
             .nth(3)
@@ -81,4 +83,20 @@ pub fn reproduce(side: Color, mb: usize) {
         history.push(board.hash());
         board.play(mv);
     }
+
+    println!("Crashing search...");
+    let start = Instant::now();
+    shared.prepare_for_search();
+    Search {
+        root: &board,
+        history: history.clone(),
+        clock: &|| start.elapsed(),
+        info: &mut |info| {
+            super::print_info(&board, MoveFormat::Chess960, &info);
+        },
+        data: &mut local,
+        shared: &shared,
+        limits: Default::default(),
+    }
+    .search();
 }
