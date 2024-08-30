@@ -15,10 +15,6 @@ impl Search<'_> {
     ) -> Option<Eval> {
         self.count_node_and_check_abort(false)?;
 
-        if draw_oracle(pos) {
-            return Some(Eval::cp(0));
-        }
-
         let tt = self.shared.tt.load(pos.hash(), ply);
         let tt_mv = tt.map(|tt| tt.mv.into());
 
@@ -61,7 +57,11 @@ impl Search<'_> {
             let mut new_pos = pos.clone();
             new_pos.play_unchecked(scored_mv.mv);
 
-            let score = -self.qsearch(&new_pos, -beta, -alpha, ply + 1)?;
+            let score = if draw_oracle(&new_pos) {
+                Eval::cp(0)
+            } else {
+                -self.qsearch(&new_pos, -beta, -alpha, ply + 1)?
+            };
 
             if score > best_score {
                 best_mv = Some(scored_mv.mv);

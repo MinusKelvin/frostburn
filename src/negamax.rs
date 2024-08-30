@@ -22,10 +22,6 @@ impl Search<'_> {
 
         self.count_node_and_check_abort(false)?;
 
-        if ply != 0 && draw_oracle(pos) {
-            return Some(Eval::cp(0));
-        }
-
         let tt = match excluded {
             Some(_) => None,
             None => self.shared.tt.load(pos.hash(), ply),
@@ -126,7 +122,7 @@ impl Search<'_> {
             self.data.prev_moves[ply] = Some((scored_mv.mv, piece));
 
             let mut score;
-            if ply != 0 && self.history.contains(&new_pos.hash()) {
+            if self.history.contains(&new_pos.hash()) || draw_oracle(&new_pos) {
                 score = Eval::cp(0);
             } else if i == 0 {
                 let mut depth = depth;
