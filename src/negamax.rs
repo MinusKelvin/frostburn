@@ -28,6 +28,13 @@ impl Search<'_> {
             self.shared.selective_depth.fetch_max(ply as i16 + 1, Ordering::Relaxed);
         }
 
+        if Eval::mating(ply) <= alpha {
+            return Some(Eval::mating(ply));
+        }
+        if Eval::mated(ply) >= beta {
+            return Some(Eval::mated(ply));
+        }
+
         let tt = match excluded {
             Some(_) => None,
             None => self.shared.tt.load(pos.hash(), ply),
