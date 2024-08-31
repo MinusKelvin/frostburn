@@ -1,5 +1,5 @@
 [workspace]
-members = ["datafmt", "datagen", "dataload", "frostburn-uci"]
+members = ["datafmt", "datagen", "trainer", "frostburn-uci"]
 
 [package]
 name = "frostburn"

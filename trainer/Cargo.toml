@@ -1,0 +1,9 @@
+[package]
+name = "trainer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+[build-dependencies]
+futhark-bindgen = { version = "0.2.8", features = ["build"] }
