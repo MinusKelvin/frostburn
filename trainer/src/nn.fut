@@ -17,6 +17,9 @@ def map_2d 'a 'b (f: a -> b) (x: [][]a): *[][]b =
 def map2_2d 'a 'b 'c (f: a -> b -> c) (x: [][]a) (y: [][]b): *[][]c =
     map2 (map2 f) x y
 
+def map3_2d 'a 'b 'c 'd (f: a -> b -> c -> d) (x: [][]a) (y: [][]b) (z: [][]c): *[][]d =
+    map3 (map3 f) x y z
+
 -- Math
 
 local def dot (x: []f32) (y: []f32) =
@@ -69,25 +72,34 @@ def sigmoid 'grads (x: VecBatch [][] grads): VecBatch [][] grads =
 
 -- Dense layer
 
-type Dense [i][o] 't = {
-    weights: [o][i]t,
-    bias: [o]t
+type Dense [i][o] = {
+    weights: [o][i]f32,
+    bias: [o]f32
 }
-type DenseWeights [i][o] = Dense [i][o] f32
 
-def init [i][o] 't (v: t): *Dense [i][o] t = {
+def init [i][o] (v: f32): *Dense [i][o] = {
     weights = rep (rep v),
     bias = rep v
 }
 
-def map_dense 'a 'b 'c (f: a -> b -> c) (a: Dense [][] a) (b: Dense [][] b): *Dense [][] c = {
+def map_dense (f: f32 -> f32) (a: Dense [][]): *Dense [][] = {
+    weights = map_2d f a.weights,
+    bias = map f a.bias
+}
+
+def map2_dense (f: f32 -> f32 -> f32) (a: Dense [][]) (b: Dense [][]): *Dense [][] = {
     weights = map2_2d f a.weights b.weights,
     bias = map2 f a.bias b.bias
 }
 
+def map3_dense (f: f32 -> f32 -> f32 -> f32) (a: Dense [][]) (b: Dense [][]) (c: Dense [][]): *Dense [][] = {
+    weights = map3_2d f a.weights b.weights c.weights,
+    bias = map3 f a.bias b.bias c.bias
+}
+
 def dense [i][o] 'grads
-    ({weights, bias}: Dense[i][o] f32)
-    (update: Dense[i][o] f32 -> grads -> grads)
+    ({weights, bias}: Dense[i][o])
+    (update: Dense[i][o] -> grads -> grads)
     (x: VecBatch [][i] grads)
 : VecBatch [][o] grads =
     let y = map (matvecmul weights >-> map2 (+) bias) x.x in
