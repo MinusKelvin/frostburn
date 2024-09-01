@@ -1,13 +1,16 @@
-def dotprod [n] (x: [n]i64) (y: [n]i64): i64 =
-    reduce (+) 0 (map2 (*) x y)
+import "nn"
+import "model"
 
-def matmul [n][m][p] (x: [n][m]i64) (y: [m][p]i64): [n][p]i64 =
-    map (\xr -> map (\yc -> dotprod xr yc) (transpose y)) x
+entry infer (weights: Model) (x: [][2]f32): [][1]f32 =
+    let y = model weights (make_vecbatch x) in
+    y.x
 
-def to_rowvec [n] (x: [n]i64): [1][n]i64 = unflatten (x :> [1*n]i64)
+entry step [b] (weights: Model) (x: [b][2]f32) (target: [b][1]f32): (f32, Model) =
+    let loss = model weights (make_vecbatch x) |> mse target in
+    let grad = backwards (init 0) loss in
+    let updated = map_weights (-) weights grad in
+    (loss.x[0][0], updated)
 
-entry sum_stuff [n] (x: [n]i64): i64 =
-    let
-        x = to_rowvec x
-    in
-        reduce (+) 0 (flatten (matmul (transpose x) x))
+entry grad (weights: Model) (x: [1][2]f32): (f32, Model) =
+    let loss = model weights (make_vecbatch x) in
+    (loss.x[0][0], backwards (init 0) loss)

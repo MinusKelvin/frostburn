@@ -165,8 +165,7 @@ dependencies = [
 [[package]]
 name = "futhark-bindgen"
 version = "0.2.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80e7a6e362910b3a96efbc364cd46012eae7096540ebdc639c428e8adeb876b5"
+source = "git+https://github.com/MinusKelvin/futhark-bindgen?branch=forward-declare#bc156a8c71c69dc70931cb89220369652e6fb9d6"
 dependencies = [
  "argh",
  "cc",
@@ -409,6 +408,7 @@ name = "trainer"
 version = "0.1.0"
 dependencies = [
  "futhark-bindgen",
+ "rand",
 ]
 
 [[package]]

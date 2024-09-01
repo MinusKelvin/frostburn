@@ -25,3 +25,7 @@ strip = true
 inherits = "release"
 debug = true
 strip = false
+
+
+[patch.crates-io]
+futhark-bindgen = { git = "https://github.com/MinusKelvin/futhark-bindgen", branch = "forward-declare" }
