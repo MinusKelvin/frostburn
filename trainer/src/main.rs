@@ -1,28 +1,21 @@
-use rand::{thread_rng, Rng};
-use trainer::{AdamOptions, ArrayF32D1, ArrayF32D2, Context, Dense, Model};
+use std::io::Write;
+use std::time::Instant;
 
-type Result<T, E = trainer::Error> = std::result::Result<T, E>;
+use dataload::BATCH_SIZE;
+use rand::{thread_rng, Rng};
+use trainer::{AdamOptions, ArrayF32D1, ArrayF32D2, Context, Linear, Model};
+
+mod dataload;
 
 #[allow(unused)]
 mod trainer {
     include!(concat!(env!("OUT_DIR"), "/trainer.rs"));
 }
 
-fn random_2d(ctx: &Context, d1: usize, d2: usize) -> Result<ArrayF32D2> {
-    let data: Vec<_> = (0..d1 * d2)
-        .map(|_| thread_rng().gen_range(-0.5..0.5))
-        .collect();
-    ArrayF32D2::new(ctx, [d1 as i64, d2 as i64], data)
-}
+type Result<T, E = trainer::Error> = std::result::Result<T, E>;
 
-fn random_1d(ctx: &Context, d1: usize) -> Result<ArrayF32D1> {
-    let data: Vec<_> = (0..d1).map(|_| thread_rng().gen_range(-0.1..0.1)).collect();
-    ArrayF32D1::new(ctx, [d1 as i64], data)
-}
-
-fn random_dense(ctx: &Context, d1: usize, d2: usize) -> Result<Dense> {
-    Dense::new(ctx, &random_1d(ctx, d2)?, &random_2d(ctx, d2, d1)?)
-}
+const WEIGHT_DECAY: f32 = 1e-6;
+const TRAIN_STEPS: usize = 500_000;
 
 fn main() {
     let ctx = Context::new().unwrap();
@@ -35,87 +28,79 @@ fn main() {
 }
 
 fn run(ctx: &Context) -> Result<()> {
-    let options = AdamOptions::new(&ctx, 0.9, 0.999, -1e-6, 1e-8, 0.001)?;
+    let batches = dataload::spawn_data_loader();
 
-    let mut weights = Model::new(&ctx, random_dense(&ctx, 2, 1)?, random_dense(&ctx, 2, 1)?)?;
+    let options = AdamOptions::new(&ctx, 0.9, 0.999, WEIGHT_DECAY, 1e-8, 0.001)?;
+
+    let mut weights = Model::new(
+        &ctx,
+        init_linear(&ctx, 768, 512)?,
+        init_linear(&ctx, 1024, 1)?,
+    )?;
     let mut state = ctx.adam_init()?;
+    let mut recent_losses = vec![];
 
-    #[rustfmt::skip]
-    let inputs = ArrayF32D2::new(&ctx, [4, 2], [
-        0.0, 0.0,
-        1.0, 0.0,
-        0.0, 1.0,
-        1.0, 1.0,
-    ])?;
-    #[rustfmt::skip]
-    let targets = ArrayF32D2::new(&ctx, [4, 1], [
-        0.0,
-        1.0,
-        1.0,
-        0.0,
-    ])?;
+    let start = Instant::now();
 
-    for i in 0..=10000 {
-        if i % 1000 == 0 {
-            let predictions = ctx.infer(&weights, &inputs)?;
-
-            print_result(&inputs, &predictions, &targets)?;
-
-            println!("l1:");
-            print_matrix(&weights.get_l1()?)?;
-            println!("l2:");
-            print_matrix(&weights.get_l2()?)?;
+    for (i, batch) in batches.into_iter().take(TRAIN_STEPS).enumerate() {
+        let mut stm_input = vec![0.0; 768 * BATCH_SIZE];
+        for [b, n] in batch.stm {
+            stm_input[b as usize * 768 + n as usize] = 1.0;
         }
+        let stm_input = ArrayF32D2::new(ctx, [BATCH_SIZE as i64, 768], stm_input)?;
 
-        let (loss, w, s) = ctx.step(&options, &weights, &state, &inputs, &targets)?;
-
-        if i % 100 == 0 {
-            println!("{loss}");
+        let mut nstm_input = vec![0.0; 768 * BATCH_SIZE];
+        for [b, n] in batch.nstm {
+            nstm_input[b as usize * 768 + n as usize] = 1.0;
         }
+        let nstm_input = ArrayF32D2::new(ctx, [BATCH_SIZE as i64, 768], nstm_input)?;
+
+        let targets = ArrayF32D2::new(ctx, [BATCH_SIZE as i64, 1], batch.targets)?;
+
+        let t = Instant::now();
+        let (loss, w, s) = ctx.step(
+            &options,
+            &weights,
+            &state,
+            &stm_input,
+            &nstm_input,
+            &targets,
+        )?;
+        println!("{:.3?}", t.elapsed());
 
         weights = w;
         state = s;
+        recent_losses.push(loss);
+
+        if recent_losses.len() == 100 {
+            let iter = i + 1;
+            let loss = recent_losses.drain(..).sum::<f32>() / 100.0;
+            let dur = start.elapsed().as_secs_f64();
+            let speed = (iter * BATCH_SIZE) as f64 / dur;
+            let secs = dur as i32 % 60;
+            let mins = dur as i32 / 60;
+            eprint!("\r{iter:>8}/{TRAIN_STEPS}   {speed:>5.0} pos/s   loss: {loss:.6}   time: {mins:2}:{secs:02}    ");
+            std::io::stderr().flush().unwrap();
+        }
     }
 
     Ok(())
 }
 
-fn print_result(
-    inputs: &ArrayF32D2<'_>,
-    predictions: &ArrayF32D2<'_>,
-    targets: &ArrayF32D2<'_>,
-) -> Result<()> {
-    let [items, inlen] = inputs.shape;
-    let items = items as usize;
-    let inlen = inlen as usize;
+fn init_linear(ctx: &Context, inputs: usize, outputs: usize) -> Result<Linear> {
+    let bound = (inputs as f32).sqrt().recip();
 
-    let inputs = inputs.get()?;
-    let predictions = predictions.get()?;
-    let targets = targets.get()?;
+    let weights = (0..inputs * outputs)
+        .map(|_| thread_rng().gen_range(-bound..=bound))
+        .collect::<Vec<_>>();
 
-    for y in 0..items {
-        for x in 0..inlen {
-            print!("{:6.3} ", inputs[y * inlen + x]);
-        }
-        println!("-> {:6.3} ({:6.3})", predictions[y], targets[y]);
-    }
+    let bias = (0..outputs)
+        .map(|_| thread_rng().gen_range(-bound..=bound))
+        .collect::<Vec<_>>();
 
-    Ok(())
-}
+    let weights = ArrayF32D2::new(ctx, [outputs as i64, inputs as i64], &weights)?;
 
-fn print_matrix(arr: &Dense) -> Result<()> {
-    let weights = arr.get_weights()?;
-    let bias = arr.get_bias()?;
-    let [out, inp] = weights.shape;
-    let out = out as usize;
-    let inp = inp as usize;
-    let weights = weights.get()?;
-    let bias = bias.get()?;
-    for y in 0..out {
-        for x in 0..inp {
-            print!("{:6.3} ", weights[y * inp + x]);
-        }
-        println!(" | {:6.3}", bias[y]);
-    }
-    Ok(())
+    let bias = ArrayF32D1::new(ctx, [outputs as i64], &bias)?;
+
+    Linear::new(ctx, &bias, &weights)
 }

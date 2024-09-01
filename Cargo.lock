@@ -407,6 +407,8 @@ dependencies = [
 name = "trainer"
 version = "0.1.0"
 dependencies = [
+ "cozy-chess",
+ "datafmt",
  "futhark-bindgen",
  "rand",
 ]

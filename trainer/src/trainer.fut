@@ -43,18 +43,22 @@ def adam
     let weights = map3_model update_w weights m v in
     (weights, { m, v, b1_t, b2_t })
 
-entry infer (weights: Model) (x: [][2]f32): [][1]f32 =
-    let y = model weights (make_vecbatch x) in
+
+entry infer (weights: Model) (stm: [][768]f32) (nstm: [][768]f32): [][1]f32 =
+    let y = model weights (make_vecbatch stm) (make_vecbatch nstm) in
     y.x
 
 entry step [b]
     (options: AdamOptions)
     (weights: Model)
     (state: AdamState)
-    (x: [b][2]f32)
+    (stm: [b][768]f32)
+    (nstm: [b][768]f32)
     (target: [b][1]f32)
 : (f32, Model, AdamState) =
-    let loss = model weights (make_vecbatch x) |> mse target in
-    let grad = backwards (init <| options.decay) loss in
+    let loss = model weights (make_vecbatch stm) (make_vecbatch nstm) |> mse target in
+    let grad = backwards (init <| -options.decay) loss in
     let (weights, state) = adam options state weights grad in
-    (loss.x[0][0], weights, state)
+    (loss.x[0][0], clip weights, state)
+
+entry update_lr (opt: AdamOptions) (lr: f32): AdamOptions = opt with lr = lr

@@ -91,36 +91,36 @@ def sigmoid 'grads (x: VecBatch [][] grads): VecBatch [][] grads =
             x.backward dLdx grads
     }
 
--- Dense layer
+-- Linear layer
 
-type Dense [i][o] = {
+type Linear [i][o] = {
     weights: [o][i]f32,
     bias: [o]f32
 }
 
-def init [i][o] (v: f32): *Dense [i][o] = {
+def init [i][o] (v: f32): *Linear [i][o] = {
     weights = rep (rep v),
     bias = rep v
 }
 
-def map_dense (f: f32 -> f32) (a: Dense [][]): *Dense [][] = {
+def map_linear (f: f32 -> f32) (a: Linear [][]): *Linear [][] = {
     weights = map_2d f a.weights,
     bias = map f a.bias
 }
 
-def map2_dense (f: f32 -> f32 -> f32) (a: Dense [][]) (b: Dense [][]): *Dense [][] = {
+def map2_linear (f: f32 -> f32 -> f32) (a: Linear [][]) (b: Linear [][]): *Linear [][] = {
     weights = map2_2d f a.weights b.weights,
     bias = map2 f a.bias b.bias
 }
 
-def map3_dense (f: f32 -> f32 -> f32 -> f32) (a: Dense [][]) (b: Dense [][]) (c: Dense [][]): *Dense [][] = {
+def map3_linear (f: f32 -> f32 -> f32 -> f32) (a: Linear [][]) (b: Linear [][]) (c: Linear [][]): *Linear [][] = {
     weights = map3_2d f a.weights b.weights c.weights,
     bias = map3 f a.bias b.bias c.bias
 }
 
-def dense [i][o] 'grads
-    ({weights, bias}: Dense[i][o])
-    (update: Dense[i][o] -> grads -> grads)
+def linear [i][o] 'grads
+    ({weights, bias}: Linear[i][o])
+    (update: Linear[i][o] -> grads -> grads)
     (x: VecBatch [][i] grads)
 : VecBatch [][o] grads =
     let y = map (matvecmul weights >-> map2 (+) bias) x.x in
