@@ -37,6 +37,27 @@ local def vecmatmul [n][m] (x: [n]f32) (a: [n][m]f32): [m]f32 =
 local def matmul [n][m][p] (a: [n][m]f32) (b: [m][p]f32): [n][p]f32 =
     map (\ar -> map (\bc -> dot ar bc) (transpose b)) a
 
+def vsub 'grads (x: VecBatch [][] grads) (nograd: [][]f32) =
+    x with x = map2_2d (-) x.x nograd
+
+def subv 'grads (nograd: [][]f32) (x: VecBatch [][] grads) =
+    let y = map2_2d (-) nograd x.x in
+    {
+        x = y,
+        backward = \dLdy grads ->
+            let dLdx = map_2d f32.neg dLdy in
+            x.backward dLdx grads
+    }
+
+def cat [b][n][m] 'grads (x1: VecBatch [b][n] grads) (x2: VecBatch [b][m] grads): VecBatch [b][n+m] grads =
+    let y = transpose x1.x ++ transpose x2.x |> transpose in
+    {
+        x = y,
+        backward = \dLdy grads ->
+            let (dLdx1_t, dLdx2_t) = transpose dLdy |> split in
+            x1.backward (transpose dLdx1_t) (x2.backward (transpose dLdx2_t) grads)
+    }
+
 -- Activation functions
 
 def crelu 'grads (x: VecBatch [][] grads): VecBatch [][] grads =
@@ -113,9 +134,6 @@ def dense [i][o] 'grads
     }
 
 -- Loss functions
-
-def vsub 'grads (x: VecBatch [][] grads) (nograd: [][]f32) =
-    x with x = map2_2d (-) x.x nograd
 
 def mean [b] 'grads (x: VecBatch [b][1] grads): VecBatch [1][1] grads =
     let n = f32.i64 b in
