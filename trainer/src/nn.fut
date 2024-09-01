@@ -20,7 +20,7 @@ def map2_2d 'a 'b 'c (f: a -> b -> c) (x: [][]a) (y: [][]b): *[][]c =
 def map3_2d 'a 'b 'c 'd (f: a -> b -> c -> d) (x: [][]a) (y: [][]b) (z: [][]c): *[][]d =
     map3 (map3 f) x y z
 
--- Math
+-- Matrix and vector math
 
 local def dot (x: []f32) (y: []f32) =
     map2 (*) x y |> reduce (+) 0

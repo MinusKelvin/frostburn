@@ -6,6 +6,7 @@ type AdamOptions = {
     b2: f32,
     eps: f32,
     lr: f32,
+    decay: f32
 }
 
 type AdamState = {
@@ -23,7 +24,7 @@ entry adam_init: AdamState = {
 }
 
 def adam
-    ({b1, b2, eps, lr}: AdamOptions)
+    ({b1, b2, eps, lr, decay}: AdamOptions)
     (state: AdamState)
     (weights: Model)
     (grad: Model)
@@ -54,6 +55,6 @@ entry step [b]
     (target: [b][1]f32)
 : (f32, Model, AdamState) =
     let loss = model weights (make_vecbatch x) |> mse target in
-    let grad = backwards (init 0) loss in
+    let grad = backwards (init <| options.decay) loss in
     let (weights, state) = adam options state weights grad in
     (loss.x[0][0], weights, state)

@@ -35,7 +35,7 @@ fn main() {
 }
 
 fn run(ctx: &Context) -> Result<()> {
-    let options = AdamOptions::new(&ctx, 0.9, 0.999, 1.0e-8, 0.001)?;
+    let options = AdamOptions::new(&ctx, 0.9, 0.999, -1e-6, 1e-8, 0.001)?;
 
     let mut weights = Model::new(&ctx, random_dense(&ctx, 2, 4)?, random_dense(&ctx, 4, 1)?)?;
     let mut state = ctx.adam_init()?;
