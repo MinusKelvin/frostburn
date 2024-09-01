@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use dataload::BATCH_SIZE;
 use rand::{thread_rng, Rng};
-use trainer::{AdamOptions, ArrayF32D1, ArrayF32D2, Context, Linear, Model};
+use trainer::{AdamOptions, ArrayF32D1, ArrayF32D2, ArrayI64D2, Context, Linear, Model};
 
 mod dataload;
 
@@ -43,18 +43,8 @@ fn run(ctx: &Context) -> Result<()> {
     let start = Instant::now();
 
     for (i, batch) in batches.into_iter().take(TRAIN_STEPS).enumerate() {
-        let mut stm_input = vec![0.0; 768 * BATCH_SIZE];
-        for [b, n] in batch.stm {
-            stm_input[b as usize * 768 + n as usize] = 1.0;
-        }
-        let stm_input = ArrayF32D2::new(ctx, [BATCH_SIZE as i64, 768], stm_input)?;
-
-        let mut nstm_input = vec![0.0; 768 * BATCH_SIZE];
-        for [b, n] in batch.nstm {
-            nstm_input[b as usize * 768 + n as usize] = 1.0;
-        }
-        let nstm_input = ArrayF32D2::new(ctx, [BATCH_SIZE as i64, 768], nstm_input)?;
-
+        let stm_input = ArrayI64D2::new(ctx, [BATCH_SIZE as i64, 32], batch.stm.as_flattened())?;
+        let nstm_input = ArrayI64D2::new(ctx, [BATCH_SIZE as i64, 32], batch.nstm.as_flattened())?;
         let targets = ArrayF32D2::new(ctx, [BATCH_SIZE as i64, 1], batch.targets)?;
 
         let t = Instant::now();

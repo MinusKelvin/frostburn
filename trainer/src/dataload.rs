@@ -2,7 +2,6 @@ use std::ffi::OsStr;
 use std::fs::{read_dir, File};
 use std::path::Path;
 use std::sync::mpsc::{sync_channel, Receiver};
-use std::thread::JoinHandle;
 
 use cozy_chess::{Board, Color, Move, Piece, Square};
 use datafmt::{DataReader, Game};
@@ -19,8 +18,8 @@ pub const BATCH_SIZE: usize = 1 << 14;
 const SIMUL_BATCHES: usize = 128;
 
 pub struct Batch {
-    pub stm: Vec<[i64; 2]>,
-    pub nstm: Vec<[i64; 2]>,
+    pub stm: Vec<[i64; 32]>,
+    pub nstm: Vec<[i64; 32]>,
     pub targets: Vec<f32>,
 }
 
@@ -54,17 +53,17 @@ pub fn spawn_data_loader() -> Receiver<Batch> {
                 .unwrap();
 
             for ((board, winner), batch) in datas.into_iter().zip(&mut batches) {
-                for sq in board.occupied() {
+                let mut stm = [-1; 32];
+                let mut nstm = [-1; 32];
+                for (i, sq) in board.occupied().iter().enumerate() {
                     let color = board.color_on(sq).unwrap();
                     let piece = board.piece_on(sq).unwrap();
-                    batch
-                        .stm
-                        .push([i as i64, feature(board.side_to_move(), color, piece, sq)]);
-                    batch
-                        .nstm
-                        .push([i as i64, feature(!board.side_to_move(), color, piece, sq)]);
+                    stm[i] = feature(board.side_to_move(), color, piece, sq);
+                    nstm[i] = feature(!board.side_to_move(), color, piece, sq);
                 }
 
+                batch.stm.push(stm);
+                batch.nstm.push(nstm);
                 batch.targets.push(match winner {
                     Some(c) if c == board.side_to_move() => 1.0,
                     Some(_) => 0.0,
