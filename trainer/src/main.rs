@@ -40,13 +40,12 @@ fn run(ctx: &Context) -> Result<()> {
     let mut state = ctx.adam_init()?;
     let mut recent_losses = vec![];
 
-    let start = Instant::now();
+    let mut start = Instant::now();
 
     for (i, batch) in batches.into_iter().take(TRAIN_STEPS).enumerate() {
         let stm_input = ArrayI64D2::new(ctx, [BATCH_SIZE as i64, 32], batch.stm.as_flattened())?;
         let targets = ArrayF32D2::new(ctx, [BATCH_SIZE as i64, 1], batch.targets)?;
 
-        let t = Instant::now();
         let (loss, w, s) = ctx.step(
             &options,
             &weights,
@@ -54,11 +53,13 @@ fn run(ctx: &Context) -> Result<()> {
             &stm_input,
             &targets,
         )?;
-        println!("{:.3?}", t.elapsed());
 
         weights = w;
         state = s;
         recent_losses.push(loss);
+        if i == 0 {
+            start = Instant::now();
+        }
 
         if recent_losses.len() == 100 {
             let iter = i + 1;

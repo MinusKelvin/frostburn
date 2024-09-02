@@ -136,14 +136,14 @@ def linear [i][o] 'grads
 def feature_transformer [i][o] 'grads
     ({weights, bias}: Linear[i][o])
     (update: Linear[i][o] -> grads -> grads)
-    (feats: [][32]i64)
+    (stm: [][32]i64)
 : VecBatch [][2*o] grads =
+    let nstm = map_2d (^0b1_111_000) stm in
     let sparse_dot ws is = reduce (+) 0 (map (\i -> if i >= 0 then ws[i] else 0) is) in
-    let y = map (\feats -> flatten [
-        map2 (\ws b -> b + sparse_dot ws feats) weights bias,
-        map2 (\ws b -> b + sparse_dot ws (map (^0b1_111_000) feats)) weights bias,
-    ]
-    ) feats in
+    let y = map2 (\stm nstm -> flatten [
+        map2 (\ws b -> b + sparse_dot ws stm) weights bias,
+        map2 (\ws b -> b + sparse_dot ws nstm) weights bias,
+    ]) stm nstm in
     {
         x = y,
         backward = \dLdy grads ->
@@ -152,11 +152,10 @@ def feature_transformer [i][o] 'grads
                 hist (+) 0 i (flatten is) (map rep dLdy |> flatten)
             in
             let dLdw = map (\dLdy ->
-                map2 (+) (acc_grad dLdy[0] feats) (acc_grad dLdy[1] (map_2d (^0b1_111_000) feats))
+                map2 (+) (acc_grad dLdy[0] stm) (acc_grad dLdy[1] nstm)
             ) (transpose dLdy) in
-            let dLdb_stm = map (f32.sum) dLdy[0] in
-            let dLdb_nstm = map (f32.sum) dLdy[1] in
-            let dLdb = map2 (+) dLdb_stm dLdb_nstm in
+            let dLdb = map (map (f32.sum)) dLdy in
+            let dLdb = map2 (+) dLdb[0] dLdb[1] in
             update { weights = dLdw, bias = dLdb } grads
     }
 
