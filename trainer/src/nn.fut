@@ -148,12 +148,15 @@ def feature_transformer [i][o] 'grads
         x = y,
         backward = \dLdy grads ->
             let dLdy: [][2][o]f32 = map unflatten dLdy in
-            let (oi, ii, v) = map2 (\dLdy feats ->
-                map3 (\i dLdy_stm dLdy_nstm ->
-                    map (\f -> [(i, f, dLdy_stm), (i, f ^ 0b1_111_000, dLdy_nstm)]) feats |> flatten
-                ) (indices dLdy[0]) dLdy[0] dLdy[1] |> flatten
-            ) dLdy feats |> flatten |> filter (\(_, ii, _) -> ii >= 0) |> unzip3 in
-            let dLdw = reduce_by_index_2d (rep (rep 0)) (+) 0 (zip oi ii) v in
+            let acc_grad [b] (dLdy: [b]f32) (is: [b][]i64) =
+                let update dLdy is = map (\i -> (dLdy, i)) is
+                let updates = map2 update dLdy is |> flatten in
+                let (vs, is) = updates |> unzip in
+                hist (+) 0 i is vs
+            in
+            let dLdw = map (\dLdy ->
+                map2 (+) (acc_grad dLdy[:,0] feats) (acc_grad dLdy[:,1] (map_2d (^0b1_111_000) feats))
+            ) (map transpose dLdy |> transpose) in
             let dLdb_stm = map (f32.sum) (transpose dLdy[:,0,:]) in
             let dLdb_nstm = map (f32.sum) (transpose dLdy[:,1,:]) in
             let dLdb = map2 (+) dLdb_stm dLdb_nstm in
