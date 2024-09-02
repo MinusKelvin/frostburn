@@ -133,11 +133,11 @@ def linear [i][o] 'grads
             x.backward dLdx (update { weights = dLdw, bias = dLdb } grads)
     }
 
-def feature_transformer [i][o] 'grads
+def feature_transformer [b][i][o] 'grads
     ({weights, bias}: Linear[i][o])
     (update: Linear[i][o] -> grads -> grads)
-    (stm: [][32]i64)
-: VecBatch [][2*o] grads =
+    (stm: [b][]i64)
+: VecBatch [b][2*o] grads =
     let nstm = map_2d (^0b1_111_000) stm in
     let sparse_dot ws is = reduce (+) 0 (map (\i -> if i >= 0 then ws[i] else 0) is) in
     let y = map2 (\stm nstm -> flatten [
@@ -147,8 +147,8 @@ def feature_transformer [i][o] 'grads
     {
         x = y,
         backward = \dLdy grads ->
-            let dLdy: [2][o][]f32 = unflatten (transpose dLdy) in
-            let acc_grad (dLdy: []f32) (is: [][]i64) =
+            let dLdy: [2][o][b]f32 = unflatten (transpose dLdy) |> manifest in
+            let acc_grad (dLdy: [b]f32) (is: [b][]i64) =
                 hist (+) 0 i (flatten is) (map rep dLdy |> flatten)
             in
             let dLdw = map (\dLdy ->
