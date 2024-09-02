@@ -44,7 +44,6 @@ fn run(ctx: &Context) -> Result<()> {
 
     for (i, batch) in batches.into_iter().take(TRAIN_STEPS).enumerate() {
         let stm_input = ArrayI64D2::new(ctx, [BATCH_SIZE as i64, 32], batch.stm.as_flattened())?;
-        let nstm_input = ArrayI64D2::new(ctx, [BATCH_SIZE as i64, 32], batch.nstm.as_flattened())?;
         let targets = ArrayF32D2::new(ctx, [BATCH_SIZE as i64, 1], batch.targets)?;
 
         let t = Instant::now();
@@ -53,7 +52,6 @@ fn run(ctx: &Context) -> Result<()> {
             &weights,
             &state,
             &stm_input,
-            &nstm_input,
             &targets,
         )?;
         println!("{:.3?}", t.elapsed());

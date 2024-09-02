@@ -2,7 +2,7 @@ import "nn"
 
 type Model = {
     ft: Linear[768][512],
-    l2: Linear[512+512][1],
+    l2: Linear[2*512][1],
 }
 
 def init (v: f32): Model = {
@@ -25,12 +25,10 @@ def map3_model (f: f32 -> f32 -> f32 -> f32) (a: Model) (b: Model) (c: Model): *
     l2 = map3_linear f a.l2 b.l2 c.l2,
 }
 
-def model [b] (w: Model) (stm: VecBatch [b][768] Model) (nstm: VecBatch [b][768] Model): VecBatch [b][1] Model =
-    let stm = linear w.ft (\d (g: Model) -> g with ft = map2_linear (+) g.ft d) stm in
-    let nstm = linear w.ft (\d (g: Model) -> g with ft = map2_linear (+) g.ft d) nstm in
-    cat stm nstm |>
-    screlu |>
-    linear w.l2 (\d (g: Model) -> g with l2 = map2_linear (+) g.l2 d) |>
+def model [b] (w: Model): (stm: [b][32]i64) -> VecBatch [b][1] Model =
+    feature_transformer w.ft (\d (g: Model) -> g with ft = map2_linear (+) g.ft d) >->
+    screlu >->
+    linear w.l2 (\d (g: Model) -> g with l2 = map2_linear (+) g.l2 d) >->
     sigmoid
 
 def clip (w: Model): Model =

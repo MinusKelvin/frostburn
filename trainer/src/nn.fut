@@ -133,6 +133,33 @@ def linear [i][o] 'grads
             x.backward dLdx (update { weights = dLdw, bias = dLdb } grads)
     }
 
+def feature_transformer [i][o] 'grads
+    ({weights, bias}: Linear[i][o])
+    (update: Linear[i][o] -> grads -> grads)
+    (feats: [][32]i64)
+: VecBatch [][2*o] grads =
+    let sparse_dot ws is = reduce (+) 0 (map (\i -> if i >= 0 then ws[i] else 0) is) in
+    let y = map (\feats -> flatten [
+        map2 (\ws b -> b + sparse_dot ws feats) weights bias,
+        map2 (\ws b -> b + sparse_dot ws (map (^0b1_111_000) feats)) weights bias,
+    ]
+    ) feats in
+    {
+        x = y,
+        backward = \dLdy grads ->
+            let dLdy: [][2][o]f32 = map unflatten dLdy in
+            let (oi, ii, v) = map2 (\dLdy feats ->
+                map3 (\i dLdy_stm dLdy_nstm ->
+                    map (\f -> [(i, f, dLdy_stm), (i, f ^ 0b1_111_000, dLdy_nstm)]) feats |> flatten
+                ) (indices dLdy[0]) dLdy[0] dLdy[1] |> flatten
+            ) dLdy feats |> flatten |> filter (\(_, ii, _) -> ii >= 0) |> unzip3 in
+            let dLdw = reduce_by_index_2d (rep (rep 0)) (+) 0 (zip oi ii) v in
+            let dLdb_stm = map (f32.sum) (transpose dLdy[:,0,:]) in
+            let dLdb_nstm = map (f32.sum) (transpose dLdy[:,1,:]) in
+            let dLdb = map2 (+) dLdb_stm dLdb_nstm in
+            update { weights = dLdw, bias = dLdb } grads
+    }
+
 -- Loss functions
 
 def mean [b] 'grads (x: VecBatch [b][1] grads): VecBatch [1][1] grads =
