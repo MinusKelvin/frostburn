@@ -208,29 +208,35 @@ impl Search<'_> {
             }
 
             if score > beta {
-                if quiet {
-                    let mut counter_hist = self.data.counter_hist.get_mut(counter_prior);
-                    let mut followup_hist = self.data.followup_hist.get_mut(followup_prior);
+                let bonus = 64 * depth;
+                let mut counter_hist = self.data.counter_hist.get_mut(counter_prior);
+                let mut followup_hist = self.data.followup_hist.get_mut(followup_prior);
 
-                    self.data.history.update(pos, scored_mv.mv, 64 * depth);
+                if quiet {
+                    self.data.history.update(pos, scored_mv.mv, bonus);
                     if let Some(counter_hist) = counter_hist.as_deref_mut() {
-                        counter_hist.update(pos, scored_mv.mv, 64 * depth);
+                        counter_hist.update(pos, scored_mv.mv, bonus);
                     }
                     if let Some(followup_hist) = followup_hist.as_deref_mut() {
-                        followup_hist.update(pos, scored_mv.mv, 64 * depth);
+                        followup_hist.update(pos, scored_mv.mv, bonus);
                     }
+                } else {
+                    self.data.capture_hist.update(pos, scored_mv.mv, bonus);
+                }
 
-                    for failure in move_picker.failed() {
-                        let failure = failure.mv;
-                        if !pos.colors(!pos.side_to_move()).has(failure.to) {
-                            self.data.history.update(pos, failure, -64 * depth);
-                            if let Some(counter_hist) = counter_hist.as_deref_mut() {
-                                counter_hist.update(pos, failure, -64 * depth);
-                            }
-                            if let Some(followup_hist) = followup_hist.as_deref_mut() {
-                                followup_hist.update(pos, failure, -64 * depth);
-                            }
+                for failure in move_picker.failed() {
+                    let failure = failure.mv;
+                    let failure_quiet = !pos.colors(!pos.side_to_move()).has(failure.to);
+                    if failure_quiet && quiet {
+                        self.data.history.update(pos, failure, -bonus);
+                        if let Some(counter_hist) = counter_hist.as_deref_mut() {
+                            counter_hist.update(pos, failure, -bonus);
                         }
+                        if let Some(followup_hist) = followup_hist.as_deref_mut() {
+                            followup_hist.update(pos, failure, -bonus);
+                        }
+                    } else if !failure_quiet {
+                        self.data.capture_hist.update(pos, failure, -bonus);
                     }
                 }
                 break;

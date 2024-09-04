@@ -66,6 +66,36 @@ impl ContinuationHistory {
     }
 }
 
+pub struct CaptureHistory {
+    table: Box<P<PieceHistory>>,
+}
+
+impl CaptureHistory {
+    pub fn new() -> Self {
+        CaptureHistory {
+            table: bytemuck::zeroed_box(),
+        }
+    }
+
+    pub fn get(&self, board: &Board, mv: Move) -> i16 {
+        let victim = board.piece_on(mv.to).unwrap();
+        self.table[victim].get(board, mv)
+    }
+
+    pub fn update(&mut self, board: &Board, mv: Move, bonus: i16) {
+        let victim = board.piece_on(mv.to).unwrap();
+        self.table[victim].update(board, mv, bonus)
+    }
+
+    pub fn decay(&mut self) {
+        let tables: &mut [PieceHistory] =
+            bytemuck::cast_slice_mut(std::slice::from_mut(&mut *self.table));
+        for table in tables {
+            table.decay();
+        }
+    }
+}
+
 #[derive(Copy, Clone, Zeroable, Pod)]
 #[repr(transparent)]
 struct P<T>([T; Piece::NUM]);

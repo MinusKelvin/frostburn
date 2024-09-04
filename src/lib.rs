@@ -9,7 +9,7 @@ use std::sync::atomic::AtomicI16;
 use alloc::vec::Vec;
 use arrayvec::ArrayVec;
 use cozy_chess::{Board, Move, Piece};
-use history::{ContinuationHistory, PieceHistory};
+use history::{CaptureHistory, ContinuationHistory, PieceHistory};
 use tt::TranspositionTable;
 
 mod eval;
@@ -38,6 +38,7 @@ pub struct LocalData {
     local_seldepth: i16,
     accumulator: Accumulator,
     history: PieceHistory,
+    capture_hist: CaptureHistory,
     counter_hist: ContinuationHistory,
     followup_hist: ContinuationHistory,
     prev_moves: [Option<(Move, Piece)>; MAX_PLY],
@@ -164,6 +165,7 @@ impl LocalData {
             local_seldepth: 0,
             accumulator: Accumulator::new(),
             history: PieceHistory::new(),
+            capture_hist: CaptureHistory::new(),
             counter_hist: ContinuationHistory::new(),
             followup_hist: ContinuationHistory::new(),
             prev_moves: [None; MAX_PLY],
