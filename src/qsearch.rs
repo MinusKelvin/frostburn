@@ -1,6 +1,6 @@
 use cozy_chess::Board;
 
-use crate::move_picker::MovePicker;
+use crate::move_picker::{see_ge, MovePicker};
 use crate::tt::{Bound, TtEntry};
 use crate::{Eval, Search, MAX_PLY};
 
@@ -49,7 +49,7 @@ impl Search<'_> {
         }
 
         while let Some((_, scored_mv)) = move_picker.next(&self.data) {
-            if scored_mv.see < 0 {
+            if !see_ge(pos, scored_mv.mv, 0) {
                 continue;
             }
 

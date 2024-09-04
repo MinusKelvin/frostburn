@@ -18,7 +18,6 @@ pub struct MovePicker<'a> {
 pub struct ScoredMove {
     pub mv: Move,
     pub score: i32,
-    pub see: i32,
     pub history: i32,
 }
 
@@ -51,17 +50,15 @@ impl<'a> MovePicker<'a> {
                 if excluded.is_some_and(|excluded| excluded == mv) {
                     continue;
                 }
-                let mut see_score = 0;
                 let mut history = 0;
                 let mut score = match tt_mv {
                     Some(tt_mv) if mv == tt_mv => 1_000_000,
                     _ if opp.has(mv.to) => {
-                        see_score = see(board, mv);
-                        let base = see_score * 10 + board.piece_on(mv.to).unwrap() as i32;
-                        if see_score < 0 {
-                            -100_000 + base
+                        let base = board.piece_on(mv.to).unwrap() as i32;
+                        if see_ge(board, mv, 1) {
+                            base + 150_000
                         } else {
-                            100_000 + base
+                            base + 100_000
                         }
                     }
                     _ => {
@@ -80,7 +77,6 @@ impl<'a> MovePicker<'a> {
                 moves.push(ScoredMove {
                     mv,
                     score,
-                    see: see_score,
                     history,
                 });
             }
@@ -117,10 +113,34 @@ impl<'a> MovePicker<'a> {
     }
 }
 
-fn see(pos: &Board, mv: Move) -> i32 {
+pub fn see_ge(pos: &Board, mv: Move, threshold: i32) -> bool {
     const VALUES: [i32; 6] = [10, 30, 33, 50, 90, 0];
 
-    fn see_impl(pos: &Board, occupied: BitBoard, sq: Square, stm: Color, piece: Piece) -> i32 {
+    let sq = mv.to;
+
+    let mut gain = pos.piece_on(sq).map_or(0, |p| VALUES[p as usize]) - threshold;
+
+    if gain < 0 {
+        // Even in the best case, we fail to beat the threshold
+        return false;
+    }
+
+    gain -= VALUES[pos.piece_on(mv.from).unwrap() as usize];
+
+    if gain >= 0 {
+        // Even if we lose the piece, we beat the threshold
+        return true;
+    }
+
+    // Track of occupancy and stm changes throughout the exchange
+    let mut occupied = pos.occupied() - mv.from.bitboard();
+    let mut stm = pos.side_to_move();
+
+    loop {
+        // swap side
+        gain = -gain - 1;
+        stm = !stm;
+
         let mut attacker = None;
 
         if attacker.is_none() {
@@ -157,35 +177,21 @@ fn see(pos: &Board, mv: Move) -> i32 {
             attacker = kings.next_square();
         }
 
-        if let Some(atk) = attacker {
-            return 0.max(
-                VALUES[piece as usize]
-                    - see_impl(
-                        pos,
-                        occupied - atk.bitboard(),
-                        sq,
-                        !stm,
-                        pos.piece_on(atk).unwrap(),
-                    ),
-            );
+        let Some(attacker) = attacker else {
+            // Out of attackers, so stm loses the exchange
+            return stm != pos.side_to_move();
+        };
+
+        // Perform recapture
+        occupied -= attacker.bitboard();
+        // Assume we lose the piece we recaptured with
+        gain -= VALUES[pos.piece_on(attacker).unwrap() as usize];
+
+        if gain >= 0 {
+            // STM wins the exchange
+            return stm == pos.side_to_move();
         }
-
-        0
     }
-
-    let captured = pos
-        .piece_on(mv.to)
-        .map_or(0, |piece| VALUES[piece as usize]);
-    let occupied = pos.occupied() - mv.from.bitboard();
-
-    captured
-        - see_impl(
-            pos,
-            occupied,
-            mv.to,
-            !pos.side_to_move(),
-            pos.piece_on(mv.from).unwrap(),
-        )
 }
 
 impl Ord for ScoredMove {
