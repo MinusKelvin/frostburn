@@ -57,7 +57,8 @@ impl<'a> MovePicker<'a> {
                     Some(tt_mv) if mv == tt_mv => 1_000_000,
                     _ if opp.has(mv.to) => {
                         see_score = see(board, mv);
-                        let base = see_score * 10 + board.piece_on(mv.to).unwrap() as i32;
+                        let base = see_score * 100 + board.piece_on(mv.to).unwrap() as i32 * 10
+                            - board.piece_on(mv.from).unwrap() as i32;
                         if see_score < 0 {
                             -100_000 + base
                         } else {
@@ -98,7 +99,8 @@ impl<'a> MovePicker<'a> {
     #[inline(always)]
     pub fn next(&mut self, _data: &LocalData) -> Option<(usize, &ScoredMove)> {
         let i = self.next_idx;
-        let (best, _) = self.moves
+        let (best, _) = self
+            .moves
             .iter()
             .enumerate()
             .skip(i)
