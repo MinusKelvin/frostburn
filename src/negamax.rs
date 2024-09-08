@@ -25,7 +25,9 @@ impl Search<'_> {
 
         if ply as i16 > self.data.local_seldepth {
             self.data.local_seldepth = ply as i16;
-            self.shared.selective_depth.fetch_max(ply as i16 + 1, Ordering::Relaxed);
+            self.shared
+                .selective_depth
+                .fetch_max(ply as i16 + 1, Ordering::Relaxed);
         }
 
         let tt = match excluded {
@@ -107,18 +109,17 @@ impl Search<'_> {
         let lmp_base = depth as i32 * depth as i32 * lmp_a() as i32
             + depth as i32 * lmp_b() as i32
             + lmp_c() as i32;
-        let lmp_limit = match improving {
+        let mut lmp_quiets_to_try = match improving {
             true => lmp_base / 8,
             false => lmp_base / 16,
-        }
-        .max(0) as usize;
+        };
 
         while let Some((i, scored_mv)) = move_picker.next(&self.data) {
             let piece = pos.piece_on(scored_mv.mv.from).unwrap();
 
             let quiet = !pos.colors(!pos.side_to_move()).has(scored_mv.mv.to);
 
-            if !PV && quiet && !best_score.losing() && i > lmp_limit {
+            if !PV && quiet && !best_score.losing() && lmp_quiets_to_try <= 0 {
                 continue;
             }
 
@@ -126,6 +127,7 @@ impl Search<'_> {
             new_pos.play_unchecked(scored_mv.mv);
             self.data.pv_table[ply + 1].clear();
             self.data.prev_moves[ply] = Some((scored_mv.mv, piece));
+            lmp_quiets_to_try -= quiet as i32;
 
             let mut score;
             if ply != 0 && self.history.contains(&new_pos.hash()) {

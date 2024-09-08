@@ -55,7 +55,7 @@ params! {
     lmr_history_max: 1..=10 = 3;
     lmp_a: 0..=64 = 5;
     lmp_b: -128..=128 = 0;
-    lmp_c: -128..=128 = 52;
+    lmp_c: -128..=128 = 36;
     asp_initial: 1..=100 = 18;
     asp_widening: 1..=200 = 101;
     tm_soft_limit: 2..=200 = 26;
