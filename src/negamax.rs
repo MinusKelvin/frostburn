@@ -123,6 +123,10 @@ impl Search<'_> {
                 continue;
             }
 
+            if !PV && !quiet && !best_score.losing() && depth < 4 && scored_mv.see < -10 * (depth * depth) as i32 {
+                continue;
+            }
+
             let mut new_pos = pos.clone();
             new_pos.play_unchecked(scored_mv.mv);
             self.data.pv_table[ply + 1].clear();
