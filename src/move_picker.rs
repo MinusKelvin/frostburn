@@ -59,7 +59,7 @@ impl<'a> MovePicker<'a> {
                         see_score = see(board, mv);
                         let base = see_score * 10 + board.piece_on(mv.to).unwrap() as i32;
                         if see_score < 0 {
-                            -100_000 + base
+                            base
                         } else {
                             100_000 + base
                         }
@@ -68,7 +68,11 @@ impl<'a> MovePicker<'a> {
                         history = data.history.get(board, mv) as i32
                             + counter_hist.map_or(0, |table| table.get(board, mv) as i32)
                             + followup_hist.map_or(0, |table| table.get(board, mv) as i32);
-                        history
+                        if history < 0 {
+                            history
+                        } else {
+                            history + 10_000
+                        }
                     }
                 };
                 match mv.promotion {
