@@ -117,7 +117,7 @@ impl<'a> MovePicker<'a> {
     }
 }
 
-fn see(pos: &Board, mv: Move) -> i32 {
+pub fn see(pos: &Board, mv: Move) -> i32 {
     const VALUES: [i32; 6] = [10, 30, 33, 50, 90, 0];
 
     fn see_impl(pos: &Board, occupied: BitBoard, sq: Square, stm: Color, piece: Piece) -> i32 {

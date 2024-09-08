@@ -2,7 +2,7 @@ use std::sync::atomic::Ordering;
 
 use cozy_chess::{Board, Move, Square};
 
-use crate::move_picker::MovePicker;
+use crate::move_picker::{see, MovePicker};
 use crate::params::*;
 use crate::tt::{Bound, TtEntry};
 use crate::{Eval, Search, MAX_PLY};
@@ -25,7 +25,9 @@ impl Search<'_> {
 
         if ply as i16 > self.data.local_seldepth {
             self.data.local_seldepth = ply as i16;
-            self.shared.selective_depth.fetch_max(ply as i16 + 1, Ordering::Relaxed);
+            self.shared
+                .selective_depth
+                .fetch_max(ply as i16 + 1, Ordering::Relaxed);
         }
 
         let tt = match excluded {
@@ -119,6 +121,10 @@ impl Search<'_> {
             let quiet = !pos.colors(!pos.side_to_move()).has(scored_mv.mv.to);
 
             if !PV && quiet && !best_score.losing() && i > lmp_limit {
+                continue;
+            }
+
+            if !PV && quiet && !best_score.losing() && depth < 4 && see(pos, scored_mv.mv) < -25 * depth as i32 {
                 continue;
             }
 
