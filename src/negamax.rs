@@ -1,6 +1,6 @@
 use std::sync::atomic::Ordering;
 
-use cozy_chess::{Board, Move, Square};
+use cozy_chess::{Board, Move, Piece, Square};
 
 use crate::move_picker::MovePicker;
 use crate::params::*;
@@ -119,7 +119,12 @@ impl Search<'_> {
 
             let quiet = !pos.colors(!pos.side_to_move()).has(scored_mv.mv.to);
 
-            if !PV && quiet && !best_score.losing() && lmp_quiets_to_try <= 0 {
+            if !PV
+                && quiet
+                && !best_score.losing()
+                && !matches!(scored_mv.mv.promotion, Some(Piece::Queen))
+                && lmp_quiets_to_try <= 0
+            {
                 continue;
             }
 
