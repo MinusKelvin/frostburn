@@ -123,6 +123,23 @@ impl Search<'_> {
                 continue;
             }
 
+            if !PV && quiet && !best_score.losing() && depth <= 4 {
+                let counter = self
+                    .data
+                    .counter_hist
+                    .get(counter_prior)
+                    .map_or(0, |h| h.get(pos, scored_mv.mv)) as i32;
+                let followup = self
+                    .data
+                    .followup_hist
+                    .get(followup_prior)
+                    .map_or(0, |h| h.get(pos, scored_mv.mv)) as i32;
+                let threshold = -256 * (depth * depth) as i32;
+                if counter < threshold && followup < threshold {
+                    continue;
+                }
+            }
+
             let mut new_pos = pos.clone();
             new_pos.play_unchecked(scored_mv.mv);
             self.data.pv_table[ply + 1].clear();
