@@ -38,6 +38,7 @@ impl Search<'_> {
 
         match tt {
             _ if PV => {}
+            _ if pos.halfmove_clock() >= 75 => {}
             Some(tt) if depth > tt.depth as i16 => {}
             Some(tt) if tt.bound.exact() => return Some(tt.score),
             Some(tt) if tt.bound.lower() && tt.score >= beta => return Some(tt.score),
