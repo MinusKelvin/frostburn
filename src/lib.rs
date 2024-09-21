@@ -23,7 +23,7 @@ mod search;
 mod tt;
 
 pub use crate::eval::Eval;
-pub use crate::nnue::Accumulator;
+pub use crate::nnue::Nnue;
 
 #[cfg(feature = "tunable")]
 pub use crate::params::{Tunable, TUNABLES};
@@ -36,7 +36,7 @@ pub struct LocalData {
     on_first_depth: bool,
     local_nodes: u64,
     local_seldepth: i16,
-    accumulator: Accumulator,
+    nnue: Nnue,
     history: PieceHistory,
     counter_hist: ContinuationHistory,
     followup_hist: ContinuationHistory,
@@ -146,7 +146,7 @@ impl Search<'_> {
     }
 
     fn eval(&mut self, board: &Board) -> Eval {
-        let mut eval = self.data.accumulator.infer(board);
+        let mut eval = self.data.nnue.infer(board);
         if self.limits.quantize_eval != 1 {
             let offset = self.limits.quantize_eval / 2 * eval.signum();
             eval = (eval + offset) / self.limits.quantize_eval * self.limits.quantize_eval;
@@ -162,7 +162,7 @@ impl LocalData {
             on_first_depth: false,
             local_nodes: 0,
             local_seldepth: 0,
-            accumulator: Accumulator::new(),
+            nnue: Nnue::new(),
             history: PieceHistory::new(),
             counter_hist: ContinuationHistory::new(),
             followup_hist: ContinuationHistory::new(),

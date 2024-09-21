@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 use cozy_chess::util::{display_uci_move, parse_uci_move};
 use cozy_chess::{Board, BoardBuilder, Color, Piece, Square};
-use frostburn::{Accumulator, ClearTtBlock, Limits, LocalData, Search, SearchInfo, SharedData};
+use frostburn::{ClearTtBlock, Limits, LocalData, Nnue, Search, SearchInfo, SharedData};
 
 mod bench;
 mod reproduce;
@@ -274,7 +274,7 @@ impl UciHandler {
     }
 
     fn eval(&mut self, _: &mut TokenIter) {
-        let mut acc = Accumulator::new();
+        let mut acc = Nnue::new();
         let guard = self.shared_data.read().unwrap();
         let config = &guard.0;
         let static_eval = acc.infer(&config.position);
