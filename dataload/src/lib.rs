@@ -76,10 +76,10 @@ pub unsafe extern "C" fn create() -> *mut Loader {
                         std::mem::swap(&mut stm_feature, &mut nstm_feature);
                     }
 
-                    if board.king(board.side_to_move()).file() < cozy_chess::File::E {
+                    if board.king(board.side_to_move()).file() >= cozy_chess::File::E {
                         stm_feature ^= MIRROR_FLIP;
                     }
-                    if board.king(!board.side_to_move()).file() < cozy_chess::File::E {
+                    if board.king(!board.side_to_move()).file() >= cozy_chess::File::E {
                         nstm_feature ^= MIRROR_FLIP;
                     }
 
