@@ -18,6 +18,9 @@ fn filter(board: &Board, mv: Move, winner: Option<Color>) -> bool {
 const BATCH_SIZE: usize = 1 << 14;
 const SIMUL_BATCHES: usize = 128;
 
+const BLACK_FLIP: usize = 0b1_111_000;
+const MIRROR_FLIP: usize = 0b0_000_111;
+
 pub struct Loader {
     batches: usize,
     recv: Receiver<Batch>,
@@ -65,12 +68,23 @@ pub unsafe extern "C" fn create() -> *mut Loader {
                 for sq in board.occupied() {
                     let color = board.color_on(sq).unwrap();
                     let piece = board.piece_on(sq).unwrap();
-                    batch
-                        .stm
-                        .push([i as i64, feature(board.side_to_move(), color, piece, sq)]);
-                    batch
-                        .nstm
-                        .push([i as i64, feature(!board.side_to_move(), color, piece, sq)]);
+
+                    let mut stm_feature = feature(color, piece, sq);
+                    let mut nstm_feature = stm_feature ^ BLACK_FLIP;
+
+                    if board.side_to_move() == Color::Black {
+                        std::mem::swap(&mut stm_feature, &mut nstm_feature);
+                    }
+
+                    if board.king(board.side_to_move()).file() < cozy_chess::File::E {
+                        stm_feature ^= MIRROR_FLIP;
+                    }
+                    if board.king(!board.side_to_move()).file() < cozy_chess::File::E {
+                        nstm_feature ^= MIRROR_FLIP;
+                    }
+
+                    batch.stm.push([i as i64, stm_feature as i64]);
+                    batch.nstm.push([i as i64, nstm_feature as i64]);
                 }
 
                 batch.targets.push(match winner {
@@ -89,21 +103,20 @@ pub unsafe extern "C" fn create() -> *mut Loader {
         }
     }));
 
-    Box::into_raw(Box::new(Loader { batches: 0,recv, handles }))
+    Box::into_raw(Box::new(Loader {
+        batches: 0,
+        recv,
+        handles,
+    }))
 }
 
-fn feature(stm: Color, color: Color, piece: Piece, sq: Square) -> i64 {
-    let (color, sq) = match stm {
-        Color::White => (color, sq),
-        Color::Black => (!color, sq.flip_rank()),
-    };
-
+fn feature(color: Color, piece: Piece, sq: Square) -> usize {
     let i = 0;
     let i = i * Piece::NUM + piece as usize;
     let i = i * Color::NUM + color as usize;
     let i = i * Square::NUM + sq as usize;
 
-    i as i64
+    i
 }
 
 #[no_mangle]
@@ -126,7 +139,7 @@ pub unsafe extern "C" fn next_batch(
             let v = loader.recv.recv().unwrap();
             // eprintln!("batch {} delayed: {:?}", loader.batches, t.elapsed());
             v
-        },
+        }
     };
     assert_eq!(batch.stm.len(), batch.nstm.len());
     assert_eq!(batch.targets.len(), BATCH_SIZE);
