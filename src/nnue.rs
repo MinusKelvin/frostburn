@@ -50,8 +50,10 @@ impl Accumulator {
 
     pub fn infer(&mut self, board: &Board) -> i16 {
         let mut updates = Updates::default();
-        for color in Color::ALL {
-            for piece in Piece::ALL {
+        for color in 0..Color::NUM {
+            let color = Color::index(color);
+            for piece in 0..Piece::NUM {
+                let piece = Piece::index(piece);
                 let enabled = &mut self.enabled[color as usize][piece as usize];
                 let feats = board.colored_pieces(color, piece);
                 let removed = *enabled - feats;
