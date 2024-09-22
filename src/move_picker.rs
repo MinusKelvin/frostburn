@@ -5,6 +5,7 @@ use cozy_chess::{
 };
 
 use crate::history::PieceHistory;
+use crate::util::BoardExt;
 use crate::LocalData;
 
 pub struct MovePicker<'a> {
@@ -53,30 +54,32 @@ impl<'a> MovePicker<'a> {
                 }
                 let mut see_score = 0;
                 let mut history = 0;
-                let mut score = match tt_mv {
-                    Some(tt_mv) if mv == tt_mv => 1_000_000,
-                    _ if opp.has(mv.to) => {
-                        see_score = see(board, mv);
-                        let base = see_score * 10 + board.piece_on(mv.to).unwrap() as i32;
-                        if see_score < 0 {
-                            -100_000 + base
-                        } else {
-                            100_000 + base
-                        }
+                let mut score;
+
+                if tt_mv == Some(mv) {
+                    score = 1_000_000;
+                } else if let Some(victim) = board.victim(mv) {
+                    see_score = see(board, mv);
+                    let base = see_score * 10 + victim as i32;
+                    if see_score < 0 {
+                        score = -100_000 + base;
+                    } else {
+                        score = 100_000 + base;
                     }
-                    _ => {
-                        history = data.history.get(board, mv) as i32
-                            + counter_hist.map_or(0, |table| table.get(board, mv) as i32)
-                            + followup_hist.map_or(0, |table| table.get(board, mv) as i32);
-                        history
-                    }
+                } else {
+                    history = data.history.get(board, mv) as i32
+                        + counter_hist.map_or(0, |table| table.get(board, mv) as i32)
+                        + followup_hist.map_or(0, |table| table.get(board, mv) as i32);
+                    score = history;
                 };
+
                 match mv.promotion {
                     Some(Piece::Knight) => score -= 400_000,
                     Some(Piece::Rook) => score -= 500_000,
                     Some(Piece::Bishop) => score -= 600_000,
                     _ => {}
                 }
+
                 moves.push(ScoredMove {
                     mv,
                     score,
@@ -98,7 +101,8 @@ impl<'a> MovePicker<'a> {
     #[inline(always)]
     pub fn next(&mut self, _data: &LocalData) -> Option<(usize, &ScoredMove)> {
         let i = self.next_idx;
-        let (best, _) = self.moves
+        let (best, _) = self
+            .moves
             .iter()
             .enumerate()
             .skip(i)
@@ -173,9 +177,7 @@ fn see(pos: &Board, mv: Move) -> i32 {
         0
     }
 
-    let captured = pos
-        .piece_on(mv.to)
-        .map_or(0, |piece| VALUES[piece as usize]);
+    let captured = pos.victim(mv).map_or(0, |piece| VALUES[piece as usize]);
     let occupied = pos.occupied() - mv.from.bitboard();
 
     captured

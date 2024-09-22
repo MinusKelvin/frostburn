@@ -5,6 +5,7 @@ use cozy_chess::{Board, Move, Square};
 use crate::move_picker::MovePicker;
 use crate::params::*;
 use crate::tt::{Bound, TtEntry};
+use crate::util::BoardExt;
 use crate::{Eval, Search, MAX_PLY};
 
 impl Search<'_> {
@@ -118,13 +119,18 @@ impl Search<'_> {
         while let Some((i, scored_mv)) = move_picker.next(&self.data) {
             let piece = pos.piece_on(scored_mv.mv.from).unwrap();
 
-            let quiet = !pos.colors(!pos.side_to_move()).has(scored_mv.mv.to);
+            let quiet = pos.victim(scored_mv.mv).is_none();
 
             if !PV && quiet && !best_score.losing() && lmp_quiets_to_try <= 0 {
                 continue;
             }
 
-            if !PV && !quiet && !best_score.losing() && depth < 4 && scored_mv.see < -10 * (depth * depth) as i32 {
+            if !PV
+                && !quiet
+                && !best_score.losing()
+                && depth < 4
+                && scored_mv.see < -10 * (depth * depth) as i32
+            {
                 continue;
             }
 

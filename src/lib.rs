@@ -21,6 +21,7 @@ mod params;
 mod qsearch;
 mod search;
 mod tt;
+mod util;
 
 pub use crate::eval::Eval;
 pub use crate::nnue::Nnue;
