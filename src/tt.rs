@@ -24,9 +24,9 @@ pub struct TtSearchEntry {
 #[derive(Pod, Zeroable, Copy, Clone)]
 #[repr(C)]
 struct TtEvalEntry {
-    pub lower_hash_bits: u16,
+    pub lower_hash_bits: u32,
     pub eval: Eval,
-    pub _padding: u32,
+    pub _padding: u16,
 }
 
 #[derive(Pod, Zeroable, Copy, Clone)]
@@ -52,7 +52,7 @@ impl TranspositionTable {
         let eval_data: TtEvalEntry = bytemuck::cast(self.slot_eval(hash).load(Ordering::Relaxed));
 
         let search_data = (search_data.lower_hash_bits == hash as u16).then_some(search_data);
-        let eval_data = (eval_data.lower_hash_bits == hash as u16).then_some(eval_data.eval);
+        let eval_data = (eval_data.lower_hash_bits == hash as u32).then_some(eval_data.eval);
 
         (search_data, eval_data)
     }
@@ -67,7 +67,7 @@ impl TranspositionTable {
     pub fn store_eval(&self, hash: u64, eval: Eval) {
         self.slot_eval(hash).store(
             bytemuck::cast(TtEvalEntry {
-                lower_hash_bits: hash as u16,
+                lower_hash_bits: hash as u32,
                 eval,
                 _padding: 0,
             }),
