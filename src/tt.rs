@@ -8,16 +8,25 @@ use crate::Eval;
 
 pub struct TranspositionTable {
     table: Box<[AtomicU64]>,
+    entries: usize,
 }
 
 #[derive(Pod, Zeroable, Copy, Clone)]
 #[repr(C)]
-pub struct TtEntry {
+pub struct TtSearchEntry {
     pub lower_hash_bits: u16,
     pub mv: PackedMove,
     pub score: Eval,
     pub depth: u8,
     pub bound: Bound,
+}
+
+#[derive(Pod, Zeroable, Copy, Clone)]
+#[repr(C)]
+struct TtEvalEntry {
+    pub lower_hash_bits: u16,
+    pub eval: Eval,
+    pub _padding: u32,
 }
 
 #[derive(Pod, Zeroable, Copy, Clone)]
@@ -30,30 +39,52 @@ pub struct Bound(u8);
 
 impl TranspositionTable {
     pub fn new(mb: usize) -> Self {
-        let _: [(); 8] = [(); core::mem::size_of::<TtEntry>()];
+        let entries = mb * 1024 * 1024 / 16;
         TranspositionTable {
-            table: bytemuck::zeroed_slice_box(mb * 1024 * 1024 / core::mem::size_of::<TtEntry>()),
+            table: bytemuck::zeroed_slice_box(entries * 2),
+            entries,
         }
     }
 
-    pub fn load(&self, hash: u64, _ply: usize) -> Option<TtEntry> {
-        let data: TtEntry = bytemuck::cast(self.slot(hash).load(Ordering::Relaxed));
-        (data.lower_hash_bits == hash as u16).then_some(data)
+    pub fn load(&self, hash: u64, _ply: usize) -> (Option<TtSearchEntry>, Option<Eval>) {
+        let search_data: TtSearchEntry =
+            bytemuck::cast(self.slot_search(hash).load(Ordering::Relaxed));
+        let eval_data: TtEvalEntry = bytemuck::cast(self.slot_eval(hash).load(Ordering::Relaxed));
+
+        let search_data = (search_data.lower_hash_bits == hash as u16).then_some(search_data);
+        let eval_data = (eval_data.lower_hash_bits == hash as u16).then_some(eval_data.eval);
+
+        (search_data, eval_data)
     }
 
-    pub fn store(&self, hash: u64, _ply: usize, mut entry: TtEntry) {
+    pub fn store_search(&self, hash: u64, _ply: usize, mut entry: TtSearchEntry) {
         entry.lower_hash_bits = hash as u16;
         entry.score = entry.score.clamp_nonmate();
-        self.slot(hash)
+        self.slot_search(hash)
             .store(bytemuck::cast(entry), Ordering::Relaxed);
+    }
+
+    pub fn store_eval(&self, hash: u64, eval: Eval) {
+        self.slot_eval(hash).store(
+            bytemuck::cast(TtEvalEntry {
+                lower_hash_bits: hash as u16,
+                eval,
+                _padding: 0,
+            }),
+            Ordering::Relaxed,
+        );
     }
 
     pub fn raw(&self) -> &[AtomicU64] {
         &self.table
     }
 
-    fn slot(&self, hash: u64) -> &AtomicU64 {
-        &self.table[(hash as u128 * self.table.len() as u128 >> 64) as u64 as usize]
+    fn slot_search(&self, hash: u64) -> &AtomicU64 {
+        &self.table[(hash as u128 * self.entries as u128 >> 64) as u64 as usize * 2]
+    }
+
+    fn slot_eval(&self, hash: u64) -> &AtomicU64 {
+        &self.table[(hash as u128 * self.entries as u128 >> 64) as u64 as usize * 2 + 1]
     }
 }
 

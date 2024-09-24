@@ -4,7 +4,7 @@ use cozy_chess::{Board, Move, Square};
 
 use crate::move_picker::MovePicker;
 use crate::params::*;
-use crate::tt::{Bound, TtEntry};
+use crate::tt::{Bound, TtSearchEntry};
 use crate::{Eval, Search, MAX_PLY};
 
 impl Search<'_> {
@@ -30,8 +30,8 @@ impl Search<'_> {
                 .fetch_max(ply as i16 + 1, Ordering::Relaxed);
         }
 
-        let tt = match excluded {
-            Some(_) => None,
+        let (tt, tt_eval) = match excluded {
+            Some(_) => (None, None),
             None => self.shared.tt.load(pos.hash(), ply),
         };
         let tt_mv = tt.map(|tt| tt.mv.into());
@@ -52,7 +52,11 @@ impl Search<'_> {
         };
 
         let static_eval = match excluded {
-            None => self.eval(pos),
+            None => tt_eval.unwrap_or_else(|| {
+                let eval = self.eval(pos);
+                self.shared.tt.store_eval(pos.hash(), eval);
+                eval
+            }),
             Some(_) => self.data.prev_evals[ply],
         };
         self.data.prev_evals[ply] = static_eval;
@@ -124,7 +128,12 @@ impl Search<'_> {
                 continue;
             }
 
-            if !PV && !quiet && !best_score.losing() && depth < 4 && scored_mv.see < -10 * (depth * depth) as i32 {
+            if !PV
+                && !quiet
+                && !best_score.losing()
+                && depth < 4
+                && scored_mv.see < -10 * (depth * depth) as i32
+            {
                 continue;
             }
 
@@ -256,10 +265,10 @@ impl Search<'_> {
 
         let bound = Bound::compute(orig_alpha, beta, best_score);
         if excluded.is_none() {
-            self.shared.tt.store(
+            self.shared.tt.store_search(
                 pos.hash(),
                 ply,
-                TtEntry {
+                TtSearchEntry {
                     lower_hash_bits: 0,
                     mv: match bound {
                         Bound::UPPER => tt_mv.unwrap_or(Move {

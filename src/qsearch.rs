@@ -1,7 +1,7 @@
 use cozy_chess::Board;
 
 use crate::move_picker::MovePicker;
-use crate::tt::{Bound, TtEntry};
+use crate::tt::{Bound, TtSearchEntry};
 use crate::{Eval, Search, MAX_PLY};
 
 impl Search<'_> {
@@ -14,7 +14,7 @@ impl Search<'_> {
     ) -> Option<Eval> {
         self.count_node_and_check_abort(false)?;
 
-        let tt = self.shared.tt.load(pos.hash(), ply);
+        let (tt, tt_eval) = self.shared.tt.load(pos.hash(), ply);
         let tt_mv = tt.map(|tt| tt.mv.into());
 
         match tt {
@@ -24,7 +24,11 @@ impl Search<'_> {
             _ => {}
         }
 
-        let stand_pat = self.eval(pos);
+        let stand_pat = tt_eval.unwrap_or_else(|| {
+            let eval = self.eval(pos);
+            self.shared.tt.store_eval(pos.hash(), eval);
+            eval
+        });
 
         let orig_alpha = alpha;
         let mut best_mv = None;
@@ -73,10 +77,10 @@ impl Search<'_> {
         }
 
         if let Some(best_mv) = best_mv {
-            self.shared.tt.store(
+            self.shared.tt.store_search(
                 pos.hash(),
                 ply,
-                TtEntry {
+                TtSearchEntry {
                     lower_hash_bits: 0,
                     mv: best_mv.into(),
                     score: best_score,
