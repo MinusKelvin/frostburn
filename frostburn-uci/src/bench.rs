@@ -5,7 +5,7 @@ use frostburn::{Limits, LocalData, Search, SharedData};
 
 
 pub fn bench() {
-    let mut shared = SharedData::new(8);
+    let mut shared = SharedData::new(64);
     for block in shared.get_clear_tt_blocks(1) {
         shared.clear_tt_block(block);
     }

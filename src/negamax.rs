@@ -79,6 +79,7 @@ impl Search<'_> {
 
             if eval >= beta && depth >= nmp_min_depth() {
                 let new_pos = pos.null_move().unwrap();
+                self.shared.tt.prefetch(new_pos.hash());
                 let r = (eval - beta + depth as i32 * nmp_depth() as i32 + nmp_constant() as i32)
                     / nmp_divisor() as i32;
                 self.data.prev_moves[ply] = None;
@@ -139,6 +140,7 @@ impl Search<'_> {
 
             let mut new_pos = pos.clone();
             new_pos.play_unchecked(scored_mv.mv);
+            self.shared.tt.prefetch(new_pos.hash());
             self.data.pv_table[ply + 1].clear();
             self.data.prev_moves[ply] = Some((scored_mv.mv, piece));
             lmp_quiets_to_try -= quiet as i32;

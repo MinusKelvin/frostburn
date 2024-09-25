@@ -75,6 +75,14 @@ impl TranspositionTable {
         );
     }
 
+    pub fn prefetch(&self, hash: u64) {
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            use std::arch::x86_64::*;
+            _mm_prefetch::<_MM_HINT_T0>(self.slot_search(hash) as *const _ as *const _);
+        }
+    }
+
     pub fn raw(&self) -> &[AtomicU64] {
         &self.table
     }

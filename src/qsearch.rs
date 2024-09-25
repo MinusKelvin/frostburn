@@ -59,6 +59,7 @@ impl Search<'_> {
 
             let mut new_pos = pos.clone();
             new_pos.play_unchecked(scored_mv.mv);
+            self.shared.tt.prefetch(new_pos.hash());
 
             let score = -self.qsearch(&new_pos, -beta, -alpha, ply + 1)?;
 
