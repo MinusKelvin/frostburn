@@ -54,7 +54,7 @@ struct Linear<const IN: usize, const OUT: usize> {
 #[repr(C)]
 struct Network {
     ft: FeatureTransformer<768, HL_SIZE>,
-    l1: Linear<{ 2 * HL_SIZE }, 1>,
+    l1: Linear<{ 2 * HL_SIZE }, 8>,
 }
 
 #[derive(Default)]
@@ -118,14 +118,16 @@ impl Nnue {
             Color::Black => (black_acc, white_acc),
         };
 
+        let bucket = (board.occupied().len() as usize - 2) / 4;
+
         let result = match backend.0 {
             #[cfg(target_arch = "x86_64")]
-            Backend::Avx2 => unsafe { avx2::infer(&stm_acc.vector, &nstm_acc.vector) },
-            Backend::Scalar => scalar::infer(&stm_acc.vector, &nstm_acc.vector),
+            Backend::Avx2 => unsafe { avx2::infer(&stm_acc.vector, &nstm_acc.vector, bucket) },
+            Backend::Scalar => scalar::infer(&stm_acc.vector, &nstm_acc.vector, bucket),
         };
 
         #[cfg(feature = "check-inference")]
-        assert_eq!(scalar::infer(&stm_acc.vector, &nstm_acc.vector), result);
+        assert_eq!(scalar::infer(&stm_acc.vector, &nstm_acc.vector, bucket), result);
 
         result
     }
