@@ -40,7 +40,7 @@ struct Linear<const IN: usize, const OUT: usize> {
 #[repr(C)]
 struct Network {
     ft: FeatureTransformer<768, HL_SIZE>,
-    l1: Linear<{ 2 * HL_SIZE }, 1>,
+    l1: Linear<{ 2 * HL_SIZE }, 8>,
 }
 
 #[derive(Default)]
@@ -77,16 +77,18 @@ impl Nnue {
             Color::Black => (black_acc, white_acc),
         };
 
+        let bucket = (board.occupied().len() as usize - 2) / 4;
+
         let result = match () {
             #[cfg(target_arch = "x86_64")]
             _ if is_x86_feature_detected!("avx2") => unsafe {
-                avx2::infer(&stm_acc.vector, &nstm_acc.vector)
+                avx2::infer(&stm_acc.vector, &nstm_acc.vector, bucket)
             },
-            _ => scalar::infer(&stm_acc.vector, &nstm_acc.vector),
+            _ => scalar::infer(&stm_acc.vector, &nstm_acc.vector, bucket),
         };
 
         #[cfg(feature = "check-inference")]
-        assert_eq!(scalar::infer(&stm_acc.vector, &nstm_acc.vector), result);
+        assert_eq!(scalar::infer(&stm_acc.vector, &nstm_acc.vector, bucket), result);
 
         result.clamp(-29_000, 29_000) as i16
     }
