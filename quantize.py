@@ -46,7 +46,7 @@ emit = Emit()
 emit.put_many_i16(transpose(model["ft.weight"]), FT_UNIT)
 emit.put_many_i16(model["ft.bias"], FT_UNIT)
 
-emit.put_many_i16(transpose(model["l1.weight"]), L1_UNIT)
+emit.put_many_i16(model["l1.weight"], L1_UNIT)
 emit.put_many_i32(model["l1.bias"], FT_UNIT * FT_UNIT * L1_UNIT)
 
 with open(sys.argv[2], "wb") as f:

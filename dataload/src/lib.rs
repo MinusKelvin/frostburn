@@ -31,6 +31,7 @@ struct Batch {
     stm: Vec<[i64; 2]>,
     nstm: Vec<[i64; 2]>,
     targets: Vec<f32>,
+    buckets: Vec<[f32; 8]>,
 }
 
 #[no_mangle]
@@ -87,6 +88,10 @@ pub unsafe extern "C" fn create() -> *mut Loader {
                     batch.nstm.push([i as i64, nstm_feature as i64]);
                 }
 
+                let mut buckets = [0.0; 8];
+                buckets[(board.occupied().len() as usize - 2) / 4] = 1.0;
+                batch.buckets.push(buckets);
+
                 batch.targets.push(match winner {
                     Some(c) if c == board.side_to_move() => 1.0,
                     Some(_) => 0.0,
@@ -130,6 +135,7 @@ pub unsafe extern "C" fn next_batch(
     stm: &mut [[i64; 2]; BATCH_SIZE * 32],
     nstm: &mut [[i64; 2]; BATCH_SIZE * 32],
     targets: &mut [f32; BATCH_SIZE],
+    buckets: &mut [[f32; 8]; BATCH_SIZE],
 ) -> u64 {
     loader.batches += 1;
     // let t = std::time::Instant::now();
@@ -145,6 +151,7 @@ pub unsafe extern "C" fn next_batch(
     assert_eq!(batch.targets.len(), BATCH_SIZE);
 
     targets.copy_from_slice(&batch.targets);
+    buckets.copy_from_slice(&batch.buckets);
     stm[..batch.stm.len()].copy_from_slice(&batch.stm);
     nstm[..batch.nstm.len()].copy_from_slice(&batch.nstm);
 
@@ -215,6 +222,7 @@ impl Default for Batch {
             stm: Vec::with_capacity(BATCH_SIZE * 32),
             nstm: Vec::with_capacity(BATCH_SIZE * 32),
             targets: Vec::with_capacity(BATCH_SIZE),
+            buckets: Vec::with_capacity(BATCH_SIZE),
         }
     }
 }
