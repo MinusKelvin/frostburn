@@ -1,12 +1,13 @@
-// #![no_std]
+#![no_std]
 extern crate alloc;
 
+use alloc::vec;
+use alloc::vec::Vec;
+use core::ops::Range;
+use core::sync::atomic::AtomicI16;
 use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use core::time::Duration;
-use std::ops::Range;
-use std::sync::atomic::AtomicI16;
 
-use alloc::vec::Vec;
 use arrayvec::ArrayVec;
 use cozy_chess::{Board, Move, Piece};
 use history::{ContinuationHistory, PieceHistory};

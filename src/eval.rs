@@ -1,5 +1,5 @@
-use std::fmt::Display;
-use std::ops::{Add, Neg, Sub};
+use core::fmt::Display;
+use core::ops::{Add, Neg, Sub};
 
 use bytemuck::{Pod, TransparentWrapper, Zeroable};
 
@@ -56,7 +56,7 @@ impl Eval {
 }
 
 impl Display for Eval {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         if self.0 < -MAX_NONMATE {
             write!(f, "mate -{}", (self.0 + 30_000 + 1) / 2)
         } else if self.0 > MAX_NONMATE {

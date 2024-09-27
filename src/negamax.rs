@@ -1,4 +1,4 @@
-use std::sync::atomic::Ordering;
+use core::sync::atomic::Ordering;
 
 use cozy_chess::{Board, Move, Square};
 

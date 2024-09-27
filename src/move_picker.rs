@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use arrayvec::ArrayVec;
 use cozy_chess::{
     get_bishop_moves, get_king_moves, get_knight_moves, get_pawn_attacks, get_rook_moves, BitBoard,
@@ -98,11 +100,12 @@ impl<'a> MovePicker<'a> {
     #[inline(always)]
     pub fn next(&mut self, _data: &LocalData) -> Option<(usize, &ScoredMove)> {
         let i = self.next_idx;
-        let (best, _) = self.moves
+        let (best, _) = self
+            .moves
             .iter()
             .enumerate()
             .skip(i)
-            .min_by_key(|&(_, mv)| std::cmp::Reverse(mv))?;
+            .min_by_key(|&(_, mv)| core::cmp::Reverse(mv))?;
         self.moves.swap(i, best);
         self.next_idx += 1;
         Some((i, &self.moves[i]))
@@ -189,13 +192,13 @@ fn see(pos: &Board, mv: Move) -> i32 {
 }
 
 impl Ord for ScoredMove {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         self.score.cmp(&other.score)
     }
 }
 
 impl PartialOrd for ScoredMove {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }

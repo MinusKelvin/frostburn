@@ -1,4 +1,4 @@
-use std::arch::x86_64::*;
+use core::arch::x86_64::*;
 
 use super::{Updates, HL_SIZE, NETWORK};
 
@@ -8,6 +8,11 @@ const _CHECK_BLOCK_SIZE: () = assert!(
     HL_SIZE % 256 == 0,
     "AVX2 implementation does not support HL sizes which are not a multiple of 256"
 );
+
+pub(super) fn available() -> bool {
+    cpufeatures::new!(check, "avx2");
+    check::get()
+}
 
 #[target_feature(enable = "avx2")]
 pub(super) unsafe fn update(acc: &mut [i16; HL_SIZE], updates: &Updates) {

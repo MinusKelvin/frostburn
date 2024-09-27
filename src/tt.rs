@@ -1,6 +1,6 @@
+use alloc::boxed::Box;
 use core::sync::atomic::{AtomicU64, Ordering};
 
-use alloc::boxed::Box;
 use bytemuck::{Pod, Zeroable};
 use cozy_chess::{Move, Piece, Square};
 
@@ -78,7 +78,7 @@ impl TranspositionTable {
     pub fn prefetch(&self, hash: u64) {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            use std::arch::x86_64::*;
+            use core::arch::x86_64::*;
             _mm_prefetch::<_MM_HINT_T0>(self.slot_search(hash) as *const _ as *const _);
         }
     }

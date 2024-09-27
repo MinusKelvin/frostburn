@@ -79,9 +79,7 @@ impl Nnue {
 
         let result = match () {
             #[cfg(target_arch = "x86_64")]
-            _ if is_x86_feature_detected!("avx2") => unsafe {
-                avx2::infer(&stm_acc.vector, &nstm_acc.vector)
-            },
+            _ if avx2::available() => unsafe { avx2::infer(&stm_acc.vector, &nstm_acc.vector) },
             _ => scalar::infer(&stm_acc.vector, &nstm_acc.vector),
         };
 
@@ -134,9 +132,7 @@ impl Accumulator {
 
         match () {
             #[cfg(target_arch = "x86_64")]
-            _ if is_x86_feature_detected!("avx2") => unsafe {
-                avx2::update(&mut self.vector, &updates)
-            },
+            _ if avx2::available() => unsafe { avx2::update(&mut self.vector, &updates) },
             _ => scalar::update(&mut self.vector, &updates),
         };
 

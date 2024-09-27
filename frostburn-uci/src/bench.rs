@@ -2,8 +2,6 @@ use std::time::{Duration, Instant};
 
 use frostburn::{Limits, LocalData, Search, SharedData};
 
-
-
 pub fn bench() {
     let mut shared = SharedData::new(64);
     for block in shared.get_clear_tt_blocks(1) {

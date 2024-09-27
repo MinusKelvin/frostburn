@@ -8,13 +8,13 @@ macro_rules! params {
 
             #[cfg(feature = "tunable")]
             pub fn $name() -> i16 {
-                atomics::$name.load(std::sync::atomic::Ordering::Relaxed)
+                atomics::$name.load(core::sync::atomic::Ordering::Relaxed)
             }
         )*
 
         #[cfg(feature = "tunable")]
         mod atomics {
-            use std::sync::atomic::AtomicI16;
+            use core::sync::atomic::AtomicI16;
             $(
                 pub(super) static $name: AtomicI16 = AtomicI16::new($default);
             )*
@@ -23,7 +23,7 @@ macro_rules! params {
         #[cfg(feature = "tunable")]
         pub struct Tunable {
             pub name: &'static str,
-            pub atomic: &'static std::sync::atomic::AtomicI16,
+            pub atomic: &'static core::sync::atomic::AtomicI16,
             pub min: i16,
             pub max: i16,
             pub default: i16,

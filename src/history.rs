@@ -1,4 +1,5 @@
-use std::ops::{Index, IndexMut};
+use alloc::boxed::Box;
+use core::ops::{Index, IndexMut};
 
 use bytemuck::{Pod, Zeroable};
 use cozy_chess::{Board, Color, Move, Piece, Square};
@@ -31,7 +32,7 @@ impl PieceHistory {
     }
 
     pub fn decay(&mut self) {
-        let data: &mut [i16] = bytemuck::cast_slice_mut(std::slice::from_mut(self));
+        let data: &mut [i16] = bytemuck::cast_slice_mut(core::slice::from_mut(self));
         for v in data {
             *v >>= 1;
         }
@@ -59,7 +60,7 @@ impl ContinuationHistory {
 
     pub fn decay(&mut self) {
         let tables: &mut [PieceHistory] =
-            bytemuck::cast_slice_mut(std::slice::from_mut(&mut *self.table));
+            bytemuck::cast_slice_mut(core::slice::from_mut(&mut *self.table));
         for table in tables {
             table.decay();
         }
