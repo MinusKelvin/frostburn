@@ -79,10 +79,11 @@ fn main() {
                 }
                 let mut tokens = buf.split_ascii_whitespace();
                 let Some(cmd) = tokens.next() else { continue };
-                let Some(&handler) = cmds.get(cmd) else {
-                    panic!("Unknown command {cmd}")
+                if let Some(&handler) = cmds.get(cmd) {
+                    handler(&mut uci, &mut tokens);
+                } else {
+                    println!("info sting Unknown command {cmd}");
                 };
-                handler(&mut uci, &mut tokens);
             }
         }
     }

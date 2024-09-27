@@ -109,6 +109,9 @@ impl Accumulator {
                 let piece = Piece::index(piece);
                 let enabled = &mut self.enabled[color as usize][piece as usize];
                 let feats = board.colored_pieces(color, piece);
+                if *enabled == feats {
+                    continue;
+                }
                 let removed = *enabled - feats;
                 let added = feats - *enabled;
                 *enabled = feats;
