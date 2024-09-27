@@ -32,17 +32,28 @@ impl Search<'_> {
 
         let orig_alpha = alpha;
         let mut best_mv = None;
-        let mut best_score = stand_pat;
+        let mut best_score = match pos.checkers().is_empty() {
+            true => stand_pat,
+            false => Eval::mated(0),
+        };
 
-        if stand_pat > beta || ply >= MAX_PLY {
-            return Some(stand_pat);
+        if best_score > beta || ply >= MAX_PLY {
+            return Some(best_score);
         }
 
-        if stand_pat > alpha {
-            alpha = stand_pat;
+        if best_score > alpha {
+            alpha = best_score;
         }
 
-        let mut move_picker = MovePicker::new(pos, &self.data, tt_mv, None, true, None, None);
+        let mut move_picker = MovePicker::new(
+            pos,
+            &self.data,
+            tt_mv,
+            None,
+            pos.checkers().is_empty(),
+            None,
+            None,
+        );
 
         if !move_picker.has_moves() {
             if pos.checkers().is_empty() {
@@ -53,7 +64,7 @@ impl Search<'_> {
         }
 
         while let Some((_, scored_mv)) = move_picker.next(&self.data) {
-            if scored_mv.see < 0 {
+            if !best_score.losing() && scored_mv.see < 0 {
                 continue;
             }
 
