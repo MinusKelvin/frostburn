@@ -57,12 +57,22 @@ impl Eval {
 
 impl Display for Eval {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        if self.0 < -MAX_NONMATE {
-            write!(f, "mate -{}", (self.0 + 30_000 + 1) / 2)
-        } else if self.0 > MAX_NONMATE {
-            write!(f, "mate {}", (30_000 - self.0 + 1) / 2)
+        if f.alternate() {
+            if self.0 < -MAX_NONMATE {
+                write!(f, "  M#-{:<2}", (self.0 + 30_000 + 1) / 2)
+            } else if self.0 > MAX_NONMATE {
+                write!(f, "   M#{:<2}", (30_000 - self.0 + 1) / 2)
+            } else {
+                write!(f, "{:>+7.02}", self.0 as f64 / 100.0)
+            }
         } else {
-            write!(f, "cp {}", self.0)
+            if self.0 < -MAX_NONMATE {
+                write!(f, "mate -{}", (self.0 + 30_000 + 1) / 2)
+            } else if self.0 > MAX_NONMATE {
+                write!(f, "mate {}", (30_000 - self.0 + 1) / 2)
+            } else {
+                write!(f, "cp {}", self.0)
+            }
         }
     }
 }

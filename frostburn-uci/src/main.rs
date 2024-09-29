@@ -7,7 +7,7 @@ use std::sync::{Arc, RwLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use cozy_chess::util::{display_uci_move, parse_uci_move};
+use cozy_chess::util::{display_san_move, display_uci_move, parse_uci_move};
 use cozy_chess::{Board, BoardBuilder, Color, Piece, Square};
 use frostburn::{ClearTtBlock, Limits, LocalData, Nnue, Search, SearchInfo, SharedData};
 
@@ -99,6 +99,7 @@ struct SearchConfig {
     history: Vec<u64>,
     mv_format: MoveFormat,
     limits: Limits,
+    pretty: bool,
 
     start: Instant,
 }
@@ -126,6 +127,7 @@ impl UciHandler {
                     history: vec![],
                     start: Instant::now(),
                     mv_format: MoveFormat::Standard,
+                    pretty: true,
                     limits: Limits::default(),
                 },
                 SharedData::new(64),
@@ -137,6 +139,7 @@ impl UciHandler {
     }
 
     fn uci(&mut self, _: &mut TokenIter) {
+        self.shared_data.write().unwrap().0.pretty = false;
         println!("id name Frostburn {}", env!("CARGO_PKG_VERSION_MAJOR"));
         println!("id author {}", env!("CARGO_PKG_AUTHORS"));
         println!("option name UCI_Chess960 type check default false");
@@ -397,6 +400,21 @@ fn print_info(root: &Board, mv_format: MoveFormat, info: &SearchInfo) {
     println!();
 }
 
+fn print_info_pretty(root: &Board, info: &SearchInfo) {
+    print!(
+        "{:2} / {:2} {:>#6} {:>8.3}s {:>12} ",
+        info.depth, info.selective_depth, info.score, info.time.as_secs_f64(), info.nodes
+    );
+
+    let mut board = root.clone();
+    for &mv in info.pv {
+        print!(" {}", display_san_move(&board, mv));
+        board.play_unchecked(mv);
+    }
+
+    println!();
+}
+
 fn search_thread(
     shared_data: Arc<RwLock<(SearchConfig, SharedData)>>,
     command: Receiver<Command>,
@@ -425,7 +443,11 @@ fn search_thread(
 
         let info: &mut dyn FnMut(SearchInfo) = match id {
             0 => &mut |info| {
-                print_info(&config.position, config.mv_format, &info);
+                if config.pretty {
+                    print_info_pretty(&config.position, &info);
+                } else {
+                    print_info(&config.position, config.mv_format, &info);
+                }
 
                 if info.finished {
                     match config.mv_format {
