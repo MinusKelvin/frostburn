@@ -59,7 +59,7 @@ impl Nnue {
         }
     }
 
-    pub fn infer(&mut self, board: &Board) -> i16 {
+    pub fn infer(&mut self, board: &Board) -> i32 {
         let white_acc = match board.king(Color::White).file() < File::E {
             true => &mut self.white_left,
             false => &mut self.white_right,
@@ -86,7 +86,7 @@ impl Nnue {
         #[cfg(feature = "check-inference")]
         assert_eq!(scalar::infer(&stm_acc.vector, &nstm_acc.vector), result);
 
-        result.clamp(-29_000, 29_000) as i16
+        result
     }
 }
 

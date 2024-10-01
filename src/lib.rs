@@ -148,11 +148,13 @@ impl Search<'_> {
 
     fn eval(&mut self, board: &Board) -> Eval {
         let mut eval = self.data.nnue.infer(board);
+        eval = eval * (200 - board.halfmove_clock() as i32) / 200;
         if self.limits.quantize_eval != 1 {
-            let offset = self.limits.quantize_eval / 2 * eval.signum();
-            eval = (eval + offset) / self.limits.quantize_eval * self.limits.quantize_eval;
+            let q = self.limits.quantize_eval as i32;
+            let offset = q / 2 * eval.signum();
+            eval = (eval + offset) / q * q;
         }
-        Eval::cp(eval)
+        Eval::cp(eval.clamp(-29_000, 29_000) as i16)
     }
 }
 
