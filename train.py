@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 INITIAL_LR = 0.001
-ITERS = 500_000
-LR_DROPS = [400_000, 475_000]
+ITERS = 750_000
+LR_DROPS = [500_000, 700_000]
 WEIGHT_DECAY = 1e-6
 
 import ctypes, subprocess, sys, os, json
