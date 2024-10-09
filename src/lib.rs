@@ -36,6 +36,7 @@ pub struct LocalData {
     pv_table: [ArrayVec<Move, MAX_PLY>; MAX_PLY + 1],
     on_first_depth: bool,
     local_nodes: u64,
+    last_global_nodes: u64,
     local_seldepth: i16,
     nnue: Nnue,
     history: PieceHistory,
@@ -125,6 +126,7 @@ impl Search<'_> {
                     .nodes
                     .fetch_add(self.data.local_nodes, Ordering::Relaxed);
             self.data.local_nodes = 0;
+            self.data.last_global_nodes = nodes;
 
             if self.limits.nodes.is_some_and(|n| nodes >= n) || self.check_time() {
                 self.shared.abort.store(true, Ordering::Relaxed);
@@ -156,6 +158,11 @@ impl Search<'_> {
         }
         Eval::cp(eval.clamp(-29_000, 29_000) as i16)
     }
+
+    fn draw_score(&mut self) -> Eval {
+        let nodes = self.data.local_nodes + self.data.last_global_nodes;
+        Eval::cp((nodes & 1) as i16)
+    }
 }
 
 impl LocalData {
@@ -164,6 +171,7 @@ impl LocalData {
             pv_table: [(); MAX_PLY + 1].map(|_| ArrayVec::new()),
             on_first_depth: false,
             local_nodes: 0,
+            last_global_nodes: 0,
             local_seldepth: 0,
             nnue: Nnue::new(),
             history: PieceHistory::new(),

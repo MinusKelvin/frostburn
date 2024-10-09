@@ -46,7 +46,7 @@ impl Search<'_> {
 
         if !move_picker.has_moves() {
             if pos.checkers().is_empty() {
-                return Some(Eval::cp(0));
+                return Some(self.draw_score());
             } else {
                 return Some(Eval::mated(ply));
             }

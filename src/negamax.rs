@@ -147,7 +147,7 @@ impl Search<'_> {
 
             let mut score;
             if ply != 0 && self.history.contains(&new_pos.hash()) {
-                score = Eval::cp(0);
+                score = self.draw_score();
             } else if i == 0 {
                 let mut depth = depth;
 
@@ -259,7 +259,7 @@ impl Search<'_> {
 
         let Some(best_mv) = best_mv else {
             if pos.checkers().is_empty() && excluded.is_none() {
-                return Some(Eval::cp(0));
+                return Some(self.draw_score());
             } else {
                 return Some(Eval::mated(ply));
             }
