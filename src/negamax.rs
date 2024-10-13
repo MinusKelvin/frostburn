@@ -110,6 +110,8 @@ impl Search<'_> {
             self.data.followup_hist.get(followup_prior),
         );
 
+        let mut singular_extended = false;
+
         self.history.push(pos.hash());
 
         let lmp_base = depth as i32 * depth as i32 * lmp_a() as i32
@@ -171,6 +173,7 @@ impl Search<'_> {
 
                         if singular_score < singular_beta {
                             depth += 1;
+                            singular_extended = true;
                         } else if singular_beta >= beta {
                             self.history.pop();
                             return Some(singular_score);
@@ -191,6 +194,7 @@ impl Search<'_> {
                 r -= PV as i16;
                 r -= improving as i16;
                 r -= !new_pos.checkers().is_empty() as i16;
+                r += singular_extended as i16;
 
                 if r < 0 || !quiet {
                     r = 0;
