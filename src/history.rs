@@ -13,10 +13,6 @@ pub struct PieceHistory {
 }
 
 impl PieceHistory {
-    pub fn new() -> Self {
-        Zeroable::zeroed()
-    }
-
     pub fn get(&self, board: &Board, mv: Move) -> i16 {
         let color = board.side_to_move();
         let piece = board.piece_on(mv.from).unwrap();
@@ -27,6 +23,37 @@ impl PieceHistory {
         let color = board.side_to_move();
         let piece = board.piece_on(mv.from).unwrap();
         let slot = &mut self.table[color][piece][mv.to];
+
+        *slot += bonus - (bonus.abs() as i32 * *slot as i32 / MAX_HISTORY) as i16;
+    }
+
+    pub fn decay(&mut self) {
+        let data: &mut [i16] = bytemuck::cast_slice_mut(core::slice::from_mut(self));
+        for v in data {
+            *v >>= 1;
+        }
+    }
+}
+
+#[derive(Zeroable, Pod, Clone, Copy)]
+#[repr(transparent)]
+pub struct ButterflyHistory {
+    table: C<Sq<Sq<i16>>>,
+}
+
+impl ButterflyHistory {
+    pub fn new() -> Self {
+        Zeroable::zeroed()
+    }
+
+    pub fn get(&self, board: &Board, mv: Move) -> i16 {
+        let color = board.side_to_move();
+        self.table[color][mv.from][mv.to]
+    }
+
+    pub fn update(&mut self, board: &Board, mv: Move, bonus: i16) {
+        let color = board.side_to_move();
+        let slot = &mut self.table[color][mv.from][mv.to];
 
         *slot += bonus - (bonus.abs() as i32 * *slot as i32 / MAX_HISTORY) as i16;
     }

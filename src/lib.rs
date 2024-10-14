@@ -10,7 +10,7 @@ use core::time::Duration;
 
 use arrayvec::ArrayVec;
 use cozy_chess::{Board, Move, Piece};
-use history::{ContinuationHistory, PieceHistory};
+use history::{ButterflyHistory, ContinuationHistory};
 use tt::TranspositionTable;
 
 mod eval;
@@ -38,7 +38,7 @@ pub struct LocalData {
     local_nodes: u64,
     local_seldepth: i16,
     nnue: Nnue,
-    history: PieceHistory,
+    history: ButterflyHistory,
     counter_hist: ContinuationHistory,
     followup_hist: ContinuationHistory,
     prev_moves: [Option<(Move, Piece)>; MAX_PLY],
@@ -166,7 +166,7 @@ impl LocalData {
             local_nodes: 0,
             local_seldepth: 0,
             nnue: Nnue::new(),
-            history: PieceHistory::new(),
+            history: ButterflyHistory::new(),
             counter_hist: ContinuationHistory::new(),
             followup_hist: ContinuationHistory::new(),
             prev_moves: [None; MAX_PLY],
