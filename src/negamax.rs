@@ -1,6 +1,6 @@
 use core::sync::atomic::Ordering;
 
-use cozy_chess::{Board, Move, Square};
+use cozy_chess::{Board, Move, Piece, Square};
 
 use crate::move_picker::MovePicker;
 use crate::params::*;
@@ -77,7 +77,10 @@ impl Search<'_> {
                 }
             }
 
-            if eval >= beta && depth >= nmp_min_depth() {
+            let has_sliders = !pos.colors(pos.side_to_move()).is_disjoint(
+                pos.pieces(Piece::Bishop) | pos.pieces(Piece::Rook) | pos.pieces(Piece::Queen),
+            );
+            if eval >= beta && depth >= nmp_min_depth() && has_sliders {
                 let new_pos = pos.null_move().unwrap();
                 self.shared.tt.prefetch(new_pos.hash());
                 let r = (eval - beta + depth as i32 * nmp_depth() as i32 + nmp_constant() as i32)
