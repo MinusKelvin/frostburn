@@ -77,7 +77,7 @@ impl Search<'_> {
                 }
             }
 
-            if eval >= beta && depth >= nmp_min_depth() {
+            if eval >= beta && depth >= nmp_min_depth() && tt.map_or(true, |tt| tt.bound.lower_or_exact()) {
                 let new_pos = pos.null_move().unwrap();
                 self.shared.tt.prefetch(new_pos.hash());
                 let r = (eval - beta + depth as i32 * nmp_depth() as i32 + nmp_constant() as i32)
