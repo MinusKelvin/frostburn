@@ -67,7 +67,7 @@ impl<'a> MovePicker<'a> {
                         }
                     }
                     _ => {
-                        history = data.history.get(board, mv) as i32
+                        history = data.history.get(board, mv) as i32 / 2
                             + counter_hist.map_or(0, |table| table.get(board, mv) as i32)
                             + followup_hist.map_or(0, |table| table.get(board, mv) as i32);
                         history
