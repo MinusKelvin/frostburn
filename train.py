@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 INITIAL_LR = 0.001
-ITERS = 750_000
-LR_DROPS = [500_000, 700_000]
+SUPER_BATCHES = 200
+LR_DROPS = [150, 180]
 WEIGHT_DECAY = 1e-6
 
 import ctypes, subprocess, sys, os, json
@@ -82,8 +82,8 @@ def batch_stream():
 model = Model().to(gpu)
 opt = torch.optim.Adam(model.parameters(), lr=INITIAL_LR, weight_decay=WEIGHT_DECAY)
 
-PRINT_ITERS = 100
-recent_losses = torch.zeros(PRINT_ITERS).to(gpu)
+B_PER_SB = 6104
+recent_losses = torch.zeros(B_PER_SB).to(gpu)
 
 start = time()
 
@@ -92,11 +92,6 @@ train_id = strftime("%Y-%m-%d-%H-%M-%S")
 train_loss = []
 
 for i, (stm, nstm, targets) in enumerate(batch_stream()):
-    if i in LR_DROPS:
-        opt.param_groups[0]["lr"] /= 10
-    if i == ITERS:
-        break
-
     opt.zero_grad()
     prediction = model(stm, nstm)
     loss = torch.mean(torch.abs(prediction - targets) ** 2)
@@ -106,16 +101,22 @@ for i, (stm, nstm, targets) in enumerate(batch_stream()):
     with torch.no_grad():
         model.clip()
 
-    recent_losses[i % PRINT_ITERS] = loss
+    recent_losses[i % B_PER_SB] = loss
 
     iter_num = i + 1
-    if iter_num % PRINT_ITERS == 0:
+    if iter_num % B_PER_SB == 0:
+        sb = iter_num // B_PER_SB
+        if sb in LR_DROPS:
+            opt.param_groups[0]["lr"] /= 10
+        if sb == SUPER_BATCHES:
+            break
+
         print_loss = torch.mean(recent_losses).item()
         durr = time() - start
         speed = iter_num * batch_size / durr
         mins = int(durr) // 60
         secs = int(durr) % 60
-        print(f"\r{iter_num:>8}/{ITERS}   {speed:>5.0f} pos/s   loss: {print_loss:.6f}   time: {mins:2}:{secs:02}    ", end="", file=sys.stderr)
+        print(f"\r{sb:>8}/{SUPER_BATCHES}   {speed:>5.0f} pos/s   loss: {print_loss:.6f}   time: {mins:2}:{secs:02}    ", end="", file=sys.stderr)
         train_loss.append(print_loss)
 
 print(file=sys.stderr)
