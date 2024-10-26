@@ -1,3 +1,6 @@
+use alloc::vec::Vec;
+use alloc::vec;
+
 use arrayvec::ArrayVec;
 use cozy_chess::{BitBoard, Board, Color, File, Piece, Square};
 
@@ -10,6 +13,17 @@ const HL_SIZE: usize = 512;
 
 const BLACK_FLIP: usize = 0b1_111_000;
 const MIRROR_FLIP: usize = 0b0_000_111;
+
+// Note: This type has the safety invariant that the contained `Backend` is safe to use.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct NnueBackend(Backend);
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum Backend {
+    Scalar,
+    #[cfg(target_arch = "x86_64")]
+    Avx2,
+}
 
 pub struct Nnue {
     white_left: Accumulator,
@@ -49,6 +63,33 @@ struct Updates {
     rms: ArrayVec<usize, 32>,
 }
 
+impl NnueBackend {
+    pub fn available() -> Vec<NnueBackend> {
+        let mut backends = vec![NnueBackend(Backend::Scalar)];
+
+        #[cfg(target_arch = "x86_64")]
+        if avx2::available() {
+            backends.push(NnueBackend(Backend::Avx2));
+        }
+
+        backends
+    }
+
+    pub fn name(self) -> &'static str {
+        match self.0 {
+            Backend::Scalar => "scalar",
+            #[cfg(target_arch = "x86_64")]
+            Backend::Avx2 => "avx2",
+        }
+    }
+}
+
+impl Default for NnueBackend {
+    fn default() -> Self {
+        NnueBackend::available().into_iter().max().unwrap()
+    }
+}
+
 impl Nnue {
     pub fn new() -> Self {
         Nnue {
@@ -59,7 +100,7 @@ impl Nnue {
         }
     }
 
-    pub fn infer(&mut self, board: &Board) -> i32 {
+    pub fn infer(&mut self, board: &Board, backend: NnueBackend) -> i32 {
         let white_acc = match board.king(Color::White).file() < File::E {
             true => &mut self.white_left,
             false => &mut self.white_right,
@@ -69,18 +110,18 @@ impl Nnue {
             false => &mut self.black_right,
         };
 
-        white_acc.update(board);
-        black_acc.update(board);
+        white_acc.update(board, backend.0);
+        black_acc.update(board, backend.0);
 
         let (stm_acc, nstm_acc) = match board.side_to_move() {
             Color::White => (white_acc, black_acc),
             Color::Black => (black_acc, white_acc),
         };
 
-        let result = match () {
+        let result = match backend.0 {
             #[cfg(target_arch = "x86_64")]
-            _ if avx2::available() => unsafe { avx2::infer(&stm_acc.vector, &nstm_acc.vector) },
-            _ => scalar::infer(&stm_acc.vector, &nstm_acc.vector),
+            Backend::Avx2 => unsafe { avx2::infer(&stm_acc.vector, &nstm_acc.vector) },
+            Backend::Scalar => scalar::infer(&stm_acc.vector, &nstm_acc.vector),
         };
 
         #[cfg(feature = "check-inference")]
@@ -99,7 +140,7 @@ impl Accumulator {
         }
     }
 
-    pub fn update(&mut self, board: &Board) {
+    fn update(&mut self, board: &Board, backend: Backend) {
         let mut updates = Updates::default();
         for color in 0..Color::NUM {
             let color = Color::index(color);
@@ -130,10 +171,10 @@ impl Accumulator {
             reference
         };
 
-        match () {
+        match backend {
             #[cfg(target_arch = "x86_64")]
-            _ if avx2::available() => unsafe { avx2::update(&mut self.vector, &updates) },
-            _ => scalar::update(&mut self.vector, &updates),
+            Backend::Avx2 => unsafe { avx2::update(&mut self.vector, &updates) },
+            Backend::Scalar => scalar::update(&mut self.vector, &updates),
         };
 
         #[cfg(feature = "check-inference")]

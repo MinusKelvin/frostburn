@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 use cozy_chess::util::{display_san_move, display_uci_move, parse_uci_move};
 use cozy_chess::{Board, BoardBuilder, Color, Piece, Square};
-use frostburn::{ClearTtBlock, Limits, LocalData, Nnue, Search, SearchInfo, SharedData};
+use frostburn::{ClearTtBlock, Limits, LocalData, Nnue, NnueBackend, Search, SearchInfo, SharedData};
 
 mod bench;
 mod reproduce;
@@ -139,13 +139,22 @@ impl UciHandler {
     }
 
     fn uci(&mut self, _: &mut TokenIter) {
-        self.shared_data.write().unwrap().0.pretty = false;
+        let mut shared = self.shared_data.write().unwrap();
+        shared.0.pretty = false;
+
         println!("id name Frostburn {}", env!("CARGO_PKG_VERSION_MAJOR"));
         println!("id author {}", env!("CARGO_PKG_AUTHORS"));
         println!("option name UCI_Chess960 type check default false");
         println!("option name Hash type spin min 1 max 1048576 default 64");
         println!("option name Threads type spin min 1 max 1024 default 1");
         println!("option name Weaken_Eval type spin min 0 max 10000 default 0");
+
+        print!("option name NNUE_Backend type combo default {}", shared.1.nnue_backend.name());
+        for backend in NnueBackend::available() {
+            print!(" var {}", backend.name());
+        }
+        println!();
+
         #[cfg(feature = "tunable")]
         for tunable in frostburn::TUNABLES {
             println!(
@@ -153,6 +162,7 @@ impl UciHandler {
                 tunable.name, tunable.min, tunable.max, tunable.default
             );
         }
+
         println!("uciok");
     }
 
@@ -177,8 +187,10 @@ impl UciHandler {
                 }
             }
             "Hash" => {
+                let backend = shared.nnue_backend;
                 let mb = tokens.nth(1).unwrap().parse().unwrap();
                 *shared = SharedData::new(mb);
+                shared.nnue_backend = backend;
             }
             "Threads" => {
                 let num = tokens.nth(1).unwrap().parse().unwrap();
@@ -197,6 +209,15 @@ impl UciHandler {
             }
             "Weaken_Eval" => {
                 config.limits.quantize_eval = tokens.nth(1).unwrap().parse::<i16>().unwrap() + 1;
+            }
+            "NNUE_Backend" => {
+                let name = tokens.nth(1).unwrap();
+                for backend in NnueBackend::available() {
+                    if name == backend.name() {
+                        shared.nnue_backend = backend;
+                        break;
+                    }
+                }
             }
             #[cfg(feature = "tunable")]
             param => {
@@ -279,9 +300,10 @@ impl UciHandler {
 
     fn eval(&mut self, _: &mut TokenIter) {
         let mut acc = Nnue::new();
+        let backend = self.shared_data.read().unwrap().1.nnue_backend;
         let guard = self.shared_data.read().unwrap();
         let config = &guard.0;
-        let static_eval = acc.infer(&config.position);
+        let static_eval = acc.infer(&config.position, backend);
         let mut others = [None; 64];
         let remove_pieces = config.position.occupied() - config.position.pieces(Piece::King);
         for sq in remove_pieces {
@@ -292,7 +314,7 @@ impl UciHandler {
             board.castle_rights[1].short = None;
             board.castle_rights[1].long = None;
             if let Ok(board) = board.build() {
-                others[sq as usize] = Some(acc.infer(&board));
+                others[sq as usize] = Some(acc.infer(&board, backend));
             }
         }
 

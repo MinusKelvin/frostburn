@@ -24,7 +24,7 @@ mod search;
 mod tt;
 
 pub use crate::eval::Eval;
-pub use crate::nnue::Nnue;
+pub use crate::nnue::{Nnue, NnueBackend};
 
 #[cfg(feature = "tunable")]
 pub use crate::params::{Tunable, TUNABLES};
@@ -52,6 +52,7 @@ pub struct SharedData {
     tt: TranspositionTable,
     log_table: [f32; 32],
     pub seed: u64,
+    pub nnue_backend: NnueBackend,
 }
 
 pub struct Search<'a> {
@@ -147,7 +148,7 @@ impl Search<'_> {
     }
 
     fn eval(&mut self, board: &Board) -> Eval {
-        let mut eval = self.data.nnue.infer(board);
+        let mut eval = self.data.nnue.infer(board, self.shared.nnue_backend);
         eval = eval * (200 - board.halfmove_clock() as i32) / 200;
         if self.limits.quantize_eval != 1 {
             let q = self.limits.quantize_eval as i32;
@@ -188,6 +189,7 @@ impl SharedData {
             tt: TranspositionTable::new(tt_mb),
             seed: 0x6CA648710DB5F3AE,
             log_table,
+            nnue_backend: NnueBackend::default(),
         }
     }
 
