@@ -71,7 +71,9 @@ impl Search<'_> {
                 return Some(eval);
             }
 
-            if depth <= razor_max_depth() && eval <= alpha - razor_margin() * depth - razor_base() {
+            if depth <= razor_max_depth()
+                && eval <= alpha - razor_margin() * (depth - !improving as i16) - razor_base()
+            {
                 let score = self.qsearch(pos, alpha, beta, ply)?;
                 if score <= alpha {
                     return Some(score);
