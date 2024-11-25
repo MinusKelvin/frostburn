@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 use arrayvec::ArrayVec;
 use cozy_chess::{
     get_bishop_moves, get_king_moves, get_knight_moves, get_pawn_attacks, get_rook_moves, BitBoard,
-    Board, Color, Move, Piece, Square,
+    Board, Color, Move, Piece, Rank, Square,
 };
 
 use crate::history::PieceHistory;
@@ -45,12 +45,21 @@ impl<'a> MovePicker<'a> {
 
         let opp = board.colors(!board.side_to_move());
 
+        let promo_rank = Rank::Eighth.relative_to(board.side_to_move()).bitboard();
+
         for &(mut mvs) in &piece_moves {
             if skip_quiets {
-                mvs.to &= opp;
+                if mvs.piece == Piece::Pawn {
+                    mvs.to &= opp | promo_rank;
+                } else {
+                    mvs.to &= opp;
+                }
             }
             for mv in mvs {
                 if excluded.is_some_and(|excluded| excluded == mv) {
+                    continue;
+                }
+                if skip_quiets && !matches!(mv.promotion, None | Some(Piece::Queen)) {
                     continue;
                 }
                 let mut see_score = 0;
