@@ -12,6 +12,9 @@ fn filter(board: &Board, mv: Move, winner: Option<Color>) -> bool {
     if board.colors(!board.side_to_move()).has(mv.to) {
         return false;
     }
+    if mv.promotion.is_some() {
+        return false;
+    }
     thread_rng().gen_bool(0.1)
 }
 
