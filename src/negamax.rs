@@ -1,6 +1,6 @@
 use core::sync::atomic::Ordering;
 
-use cozy_chess::{Board, Move, Square};
+use cozy_chess::{Board, Move, Piece, Square};
 
 use crate::move_picker::MovePicker;
 use crate::params::*;
@@ -124,7 +124,8 @@ impl Search<'_> {
         while let Some((i, scored_mv)) = move_picker.next(&self.data) {
             let piece = pos.piece_on(scored_mv.mv.from).unwrap();
 
-            let quiet = !pos.colors(!pos.side_to_move()).has(scored_mv.mv.to);
+            let quiet = scored_mv.mv.promotion == Some(Piece::Queen)
+                || !pos.colors(!pos.side_to_move()).has(scored_mv.mv.to);
 
             if !PV && quiet && !best_score.losing() && lmp_quiets_to_try <= 0 {
                 continue;
@@ -227,7 +228,7 @@ impl Search<'_> {
             }
 
             if score > beta {
-                if quiet {
+                if !pos.colors(!pos.side_to_move()).has(scored_mv.mv.to) {
                     let mut counter_hist = self.data.counter_hist.get_mut(counter_prior);
                     let mut followup_hist = self.data.followup_hist.get_mut(followup_prior);
 
