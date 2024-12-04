@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 INITIAL_LR = 0.001
-SUPER_BATCHES = 200
-LR_DROPS = [150, 180]
+SUPER_BATCHES = 400
+LR_DROPS = [200, 350]
 WEIGHT_DECAY = 1e-6
 
 import ctypes, subprocess, sys, os, json
@@ -101,15 +101,13 @@ for i, (stm, nstm, targets) in enumerate(batch_stream()):
     with torch.no_grad():
         model.clip()
 
-    recent_losses[i % B_PER_SB] = loss
+    recent_losses[i % B_PER_SB] = loss.detach()
 
     iter_num = i + 1
     if iter_num % B_PER_SB == 0:
         sb = iter_num // B_PER_SB
         if sb in LR_DROPS:
             opt.param_groups[0]["lr"] /= 10
-        if sb == SUPER_BATCHES:
-            break
 
         print_loss = torch.mean(recent_losses).item()
         durr = time() - start
@@ -118,6 +116,9 @@ for i, (stm, nstm, targets) in enumerate(batch_stream()):
         secs = int(durr) % 60
         print(f"\r{sb:>8}/{SUPER_BATCHES}   {speed:>5.0f} pos/s   loss: {print_loss:.6f}   time: {mins:2}:{secs:02}    ", end="", file=sys.stderr)
         train_loss.append(print_loss)
+
+        if sb == SUPER_BATCHES:
+            break
 
 print(file=sys.stderr)
 
@@ -136,7 +137,7 @@ except ImportError:
     print("matplotlib not installed; not generating loss graph")
     sys.exit(0)
 
-plt.plot(range(0, ITERS, PRINT_ITERS), train_loss)
+plt.plot(range(SUPER_BATCHES), train_loss)
 for drop in LR_DROPS:
     plt.axvline(drop, ls=":")
 plt.savefig("loss.png")
