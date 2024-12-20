@@ -111,6 +111,10 @@ impl Search<'_> {
             self.data.followup_hist.get(followup_prior),
         );
 
+        if pos.halfmove_clock() >= 100 && move_picker.has_moves() {
+            return Some(Eval::cp(0));
+        }
+
         self.history.push(pos.hash());
 
         let lmp_base = depth as i32 * depth as i32 * lmp_a() as i32
