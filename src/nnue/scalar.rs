@@ -15,7 +15,7 @@ pub(super) fn update(acc: &mut [i16; HL_SIZE], updates: &Updates) {
     }
 }
 
-pub(super) fn infer(stm: &[i16; HL_SIZE], nstm: &[i16; HL_SIZE]) -> i32 {
+pub(super) fn infer(stm: &[i16; HL_SIZE], nstm: &[i16; HL_SIZE], pst: i32) -> i32 {
     let mut activated = [0; HL_SIZE * 2];
     let (left, right) = activated.split_at_mut(HL_SIZE);
     let left = <&mut [_; HL_SIZE]>::try_from(left).unwrap();
@@ -24,7 +24,7 @@ pub(super) fn infer(stm: &[i16; HL_SIZE], nstm: &[i16; HL_SIZE]) -> i32 {
     *left = crelu(stm);
     *right = crelu(nstm);
 
-    let mut result = NETWORK.l1.bias[0] as i32;
+    let mut result = NETWORK.l1.bias[0] as i32 + pst;
 
     for i in 0..activated.len() {
         result += activated[i] as i32 * activated[i] as i32 * NETWORK.l1.w[0][i] as i32;

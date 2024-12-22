@@ -1,5 +1,5 @@
-use alloc::vec::Vec;
 use alloc::vec;
+use alloc::vec::Vec;
 
 use arrayvec::ArrayVec;
 use cozy_chess::{BitBoard, Board, Color, File, Piece, Square};
@@ -36,6 +36,7 @@ pub struct Nnue {
 struct Accumulator {
     flip: usize,
     enabled: [[BitBoard; 6]; 2],
+    pst: i32,
     vector: [i16; HL_SIZE],
 }
 
@@ -54,6 +55,7 @@ struct Linear<const IN: usize, const OUT: usize> {
 #[repr(C)]
 struct Network {
     ft: FeatureTransformer<768, HL_SIZE>,
+    pst: [i32; 768],
     l1: Linear<{ 2 * HL_SIZE }, 1>,
 }
 
@@ -120,8 +122,18 @@ impl Nnue {
 
         let result = match backend.0 {
             #[cfg(target_arch = "x86_64")]
-            Backend::Avx2 => unsafe { avx2::infer(&stm_acc.vector, &nstm_acc.vector) },
-            Backend::Scalar => scalar::infer(&stm_acc.vector, &nstm_acc.vector),
+            Backend::Avx2 => unsafe {
+                avx2::infer(
+                    &stm_acc.vector,
+                    &nstm_acc.vector,
+                    stm_acc.pst - nstm_acc.pst,
+                )
+            },
+            Backend::Scalar => scalar::infer(
+                &stm_acc.vector,
+                &nstm_acc.vector,
+                stm_acc.pst - nstm_acc.pst,
+            ),
         };
 
         #[cfg(feature = "check-inference")]
@@ -135,6 +147,7 @@ impl Accumulator {
     pub fn new(flip: usize) -> Self {
         Accumulator {
             flip,
+            pst: 0,
             enabled: [[BitBoard::EMPTY; 6]; 2],
             vector: NETWORK.ft.bias,
         }
@@ -157,9 +170,11 @@ impl Accumulator {
 
                 for sq in removed {
                     updates.rms.push(feature(color, piece, sq) ^ self.flip);
+                    self.pst -= NETWORK.pst[feature(color, piece, sq) ^ self.flip];
                 }
                 for sq in added {
                     updates.adds.push(feature(color, piece, sq) ^ self.flip);
+                    self.pst += NETWORK.pst[feature(color, piece, sq) ^ self.flip];
                 }
             }
         }

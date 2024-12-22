@@ -24,6 +24,7 @@ except ImportError:
 class Model(torch.nn.Module):
     def __init__(self):
         super().__init__()
+        self.pst = torch.nn.Linear(768, 1, bias=False)
         self.ft = torch.nn.Linear(768, 512)
         self.l1 = torch.nn.Linear(1024, 1)
 
@@ -31,6 +32,7 @@ class Model(torch.nn.Module):
         self.l1.weight.data = self.l1.weight.data.clamp(-127/64, 127/64)
 
     def forward(self, stm, nstm):
+        pst = self.pst(stm) - self.pst(nstm)
         stm = self.ft(stm)
         nstm = self.ft(nstm)
         x = torch.cat((stm, nstm), dim=1)
@@ -39,7 +41,7 @@ class Model(torch.nn.Module):
         x = x * x
         x = self.l1(x)
 
-        return torch.sigmoid(x)
+        return torch.sigmoid(x + pst)
 
 
 if compiling.wait() != 0:
