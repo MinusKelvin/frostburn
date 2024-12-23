@@ -11,12 +11,13 @@ edition = "2021"
 [features]
 tunable = []
 check-inference = []
+nightly-avx512 = []
 
 [dependencies]
 arrayvec = "0.7.4"
 bytemuck = { version = "1.16.0", features = ["derive", "zeroable_atomics", "extern_crate_alloc"] }
 cozy-chess = "0.3.4"
-cpufeatures = "0.2.14"
+cpufeatures = "0.2.16"
 
 [profile.release]
 lto = true
