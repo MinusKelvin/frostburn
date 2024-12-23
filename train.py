@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 
 INITIAL_LR = 0.001
-SUPER_BATCHES = 400
-LR_DROPS = [200, 350]
+SUPER_BATCHES = 600
+LR_DROPS = [300, 550]
 WEIGHT_DECAY = 1e-6
+
+HL_SIZE = 1024
 
 import ctypes, subprocess, sys, os, json
 from time import time, strftime
@@ -24,8 +26,8 @@ except ImportError:
 class Model(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.ft = torch.nn.Linear(768, 512)
-        self.l1 = torch.nn.Linear(1024, 1)
+        self.ft = torch.nn.Linear(768, HL_SIZE)
+        self.l1 = torch.nn.Linear(HL_SIZE*2, 1)
 
     def clip(self):
         self.l1.weight.data = self.l1.weight.data.clamp(-127/64, 127/64)

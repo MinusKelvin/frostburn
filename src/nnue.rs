@@ -11,7 +11,7 @@ mod avx512;
 
 mod scalar;
 
-const HL_SIZE: usize = 512;
+const HL_SIZE: usize = 1024;
 
 const BLACK_FLIP: usize = 0b1_111_000;
 const MIRROR_FLIP: usize = 0b0_000_111;
