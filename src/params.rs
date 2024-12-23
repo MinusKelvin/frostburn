@@ -13,6 +13,7 @@ macro_rules! params {
         )*
 
         #[cfg(feature = "tunable")]
+        #[allow(non_upper_case_globals)]
         mod atomics {
             use core::sync::atomic::AtomicI16;
             $(

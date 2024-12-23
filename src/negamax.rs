@@ -103,7 +103,7 @@ impl Search<'_> {
         let mut best_score = Eval::mated(0);
         let mut move_picker = MovePicker::new(
             pos,
-            &self.data,
+            self.data,
             tt_mv,
             excluded,
             false,
@@ -125,7 +125,7 @@ impl Search<'_> {
             false => lmp_base / 16,
         };
 
-        while let Some((i, scored_mv)) = move_picker.next(&self.data) {
+        while let Some((i, scored_mv)) = move_picker.next(self.data) {
             let piece = pos.piece_on(scored_mv.mv.from).unwrap();
 
             let quiet = !pos.colors(!pos.side_to_move()).has(scored_mv.mv.to);
@@ -222,7 +222,7 @@ impl Search<'_> {
                     let [pv, cont] = self.data.pv_table[ply..].first_chunk_mut().unwrap();
                     pv.clear();
                     pv.push(scored_mv.mv);
-                    pv.try_extend_from_slice(&cont).unwrap();
+                    pv.try_extend_from_slice(cont).unwrap();
                 }
             }
 
@@ -283,7 +283,7 @@ impl Search<'_> {
                             to: Square::A1,
                             promotion: None,
                         }),
-                        _ => best_mv.into(),
+                        _ => best_mv,
                     }
                     .into(),
                     score: best_score,

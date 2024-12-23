@@ -9,7 +9,9 @@ use std::time::{Duration, Instant};
 
 use cozy_chess::util::{display_san_move, display_uci_move, parse_uci_move};
 use cozy_chess::{Board, BoardBuilder, Color, Piece, Square};
-use frostburn::{ClearTtBlock, Limits, LocalData, Nnue, NnueBackend, Search, SearchInfo, SharedData};
+use frostburn::{
+    ClearTtBlock, Limits, LocalData, Nnue, NnueBackend, Search, SearchInfo, SharedData,
+};
 
 mod bench;
 mod reproduce;
@@ -149,7 +151,10 @@ impl UciHandler {
         println!("option name Threads type spin min 1 max 1024 default 1");
         println!("option name Weaken_Eval type spin min 0 max 10000 default 0");
 
-        print!("option name NNUE_Backend type combo default {}", shared.1.nnue_backend.name());
+        print!(
+            "option name NNUE_Backend type combo default {}",
+            shared.1.nnue_backend.name()
+        );
         for backend in NnueBackend::available() {
             print!(" var {}", backend.name());
         }
@@ -228,6 +233,10 @@ impl UciHandler {
                     }
                 }
             }
+            #[allow(
+                unreachable_patterns,
+                reason = "suppress warning when tunable feature enabled"
+            )]
             _ => {}
         }
     }
@@ -256,7 +265,7 @@ impl UciHandler {
 
         let _moves_token = tokens.next();
 
-        while let Some(mv) = tokens.next() {
+        for mv in tokens {
             let mv = match config.mv_format {
                 MoveFormat::Standard => parse_uci_move(&config.position, mv).unwrap(),
                 MoveFormat::Chess960 => mv.parse().unwrap(),
@@ -425,7 +434,11 @@ fn print_info(root: &Board, mv_format: MoveFormat, info: &SearchInfo) {
 fn print_info_pretty(root: &Board, info: &SearchInfo) {
     print!(
         "{:2} / {:2} {:>#6} {:>8.3}s {:>12} ",
-        info.depth, info.selective_depth, info.score, info.time.as_secs_f64(), info.nodes
+        info.depth,
+        info.selective_depth,
+        info.score,
+        info.time.as_secs_f64(),
+        info.nodes
     );
 
     let mut board = root.clone();

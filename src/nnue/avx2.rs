@@ -2,12 +2,18 @@ use core::arch::x86_64::*;
 
 use super::{Updates, HL_SIZE, NETWORK};
 
-const CHUNKS: usize = HL_SIZE / 16;
+const NEURONS_PER_VECTOR: usize = 256 / 16;
+const VECTORS_PER_BLOCK: usize = 16;
 
-const _CHECK_BLOCK_SIZE: () = assert!(
-    HL_SIZE % 256 == 0,
-    "AVX2 implementation does not support HL sizes which are not a multiple of 256"
-);
+const HL_VECTORS: usize = HL_SIZE / NEURONS_PER_VECTOR;
+
+const _: () = {
+    const NEURONS_PER_BLOCK: usize = NEURONS_PER_VECTOR * VECTORS_PER_BLOCK;
+    assert!(
+        HL_SIZE % NEURONS_PER_BLOCK == 0,
+        "AVX2 implementation does not support HL sizes which are not a multiple of 256"
+    )
+};
 
 pub(super) fn available() -> bool {
     cpufeatures::new!(check, "avx2");
@@ -16,7 +22,7 @@ pub(super) fn available() -> bool {
 
 #[target_feature(enable = "avx2")]
 pub(super) unsafe fn update(acc: &mut [i16; HL_SIZE], updates: &Updates) {
-    for block in (0..CHUNKS).step_by(16) {
+    for block in (0..HL_VECTORS).step_by(VECTORS_PER_BLOCK) {
         partial_update(acc, &updates.adds, &updates.rms, block);
     }
 }
@@ -48,25 +54,25 @@ pub(super) unsafe fn infer(stm: &[i16; HL_SIZE], nstm: &[i16; HL_SIZE]) -> i32 {
 #[target_feature(enable = "avx2")]
 unsafe fn partial_update(acc: &mut [i16; HL_SIZE], adds: &[usize], subs: &[usize], block: usize) {
     let acc: *mut __m256i = acc.as_mut_ptr().cast();
-    let mut intermediates = [_mm256_setzero_si256(); 16];
-    for i in 0..16 {
+    let mut intermediates = [_mm256_setzero_si256(); VECTORS_PER_BLOCK];
+    for i in 0..VECTORS_PER_BLOCK {
         intermediates[i] = _mm256_loadu_si256(acc.add(block + i));
     }
     for &add in adds {
         let add: *const __m256i = NETWORK.ft.w[add].as_ptr().cast();
-        for i in 0..16 {
+        for i in 0..VECTORS_PER_BLOCK {
             let v = _mm256_loadu_si256(add.add(block + i));
             intermediates[i] = _mm256_add_epi16(intermediates[i], v);
         }
     }
     for &sub in subs {
         let sub: *const __m256i = NETWORK.ft.w[sub].as_ptr().cast();
-        for i in 0..16 {
+        for i in 0..VECTORS_PER_BLOCK {
             let v = _mm256_loadu_si256(sub.add(block + i));
             intermediates[i] = _mm256_sub_epi16(intermediates[i], v);
         }
     }
-    for i in 0..16 {
+    for i in 0..VECTORS_PER_BLOCK {
         _mm256_storeu_si256(acc.add(block + i), intermediates[i]);
     }
 }
@@ -81,7 +87,7 @@ unsafe fn fused_activate_dot(a: &[i16; HL_SIZE], w: &[i16; HL_SIZE]) -> __m256i 
     let zero = _mm256_setzero_si256();
     let one = _mm256_set1_epi16(256);
 
-    for i in 0..CHUNKS {
+    for i in 0..HL_VECTORS {
         let a = _mm256_loadu_si256(a.add(i));
         let a = _mm256_max_epi16(a, zero);
         let a = _mm256_min_epi16(a, one);

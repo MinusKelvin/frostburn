@@ -1,5 +1,6 @@
 [workspace]
 members = ["datafmt", "datagen", "dataload", "frostburn-uci"]
+default-members = ["frostburn-uci"]
 
 [package]
 name = "frostburn"
