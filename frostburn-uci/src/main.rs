@@ -153,7 +153,7 @@ impl UciHandler {
 
         print!(
             "option name NNUE_Backend type combo default {}",
-            shared.1.nnue_backend.name()
+            NnueBackend::default().name()
         );
         for backend in NnueBackend::available() {
             print!(" var {}", backend.name());

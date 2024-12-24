@@ -154,7 +154,7 @@ impl Search<'_> {
             if ply != 0 && self.history.contains(&new_pos.hash()) {
                 score = Eval::cp(0);
             } else if i == 0 {
-                let mut depth = depth;
+                let mut ext_depth = depth;
 
                 if let Some(tt) = tt {
                     if depth >= singular_min_depth()
@@ -175,7 +175,7 @@ impl Search<'_> {
                         )?;
 
                         if singular_score < singular_beta {
-                            depth += 1;
+                            ext_depth += 1;
                         } else if singular_beta >= beta {
                             self.history.pop();
                             return Some(singular_score);
@@ -183,7 +183,7 @@ impl Search<'_> {
                     }
                 }
 
-                score = self.search_opp::<PV>(&new_pos, alpha, beta, depth - 1, ply + 1)?;
+                score = self.search_opp::<PV>(&new_pos, alpha, beta, ext_depth - 1, ply + 1)?;
             } else {
                 let base_r = self.shared.log(i)
                     * self.shared.log(depth as usize)
