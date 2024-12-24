@@ -139,7 +139,7 @@ impl Nnue {
         #[cfg(feature = "check-inference")]
         assert_eq!(scalar::infer(&stm_acc.vector, &nstm_acc.vector), result);
 
-        result
+        (result + (256 * 64 / 2) * result.signum()) / 256 / 64
     }
 }
 
