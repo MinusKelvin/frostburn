@@ -48,7 +48,7 @@ pub(super) unsafe fn infer(stm: &[i16; HL_SIZE], nstm: &[i16; HL_SIZE]) -> i32 {
     result = _mm_add_epi32(result, _mm_shuffle_epi32::<0b10_11_00_01>(result));
     // result = A+B+C+D A+B+C+D A+B+C+D A+B+C+D
 
-    (NETWORK.l1.bias[0] + _mm_extract_epi32::<0>(result)) / 256 / 64
+    NETWORK.l1.bias[0] + _mm_extract_epi32::<0>(result)
 }
 
 #[target_feature(enable = "avx2")]

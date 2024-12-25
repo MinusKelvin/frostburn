@@ -40,7 +40,7 @@ pub(super) unsafe fn infer(stm: &[i16; HL_SIZE], nstm: &[i16; HL_SIZE]) -> i32 {
 
     let result = _mm512_reduce_add_epi32(result);
 
-    (NETWORK.l1.bias[0] + result) / 256 / 64
+    NETWORK.l1.bias[0] + result
 }
 
 #[target_feature(enable = "avx512f,avx512bw")]

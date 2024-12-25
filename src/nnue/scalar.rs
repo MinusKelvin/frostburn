@@ -30,7 +30,7 @@ pub(super) fn infer(stm: &[i16; HL_SIZE], nstm: &[i16; HL_SIZE]) -> i32 {
         result += activated[i] as i32 * activated[i] as i32 * NETWORK.l1.w[0][i] as i32;
     }
 
-    result / 256 / 64
+    result
 }
 
 fn crelu<const N: usize>(a: &[i16; N]) -> [i16; N] {
