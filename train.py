@@ -29,7 +29,7 @@ class Model(torch.nn.Module):
         self.l1 = torch.nn.Linear(1024, 1)
 
     def clip(self):
-        self.l1.weight.data = self.l1.weight.data.clamp(-127/64, 127/64)
+        self.l1.weight.data = self.l1.weight.data.clamp(-1, 1)
 
     def forward(self, stm, nstm):
         pst = self.pst(stm) - self.pst(nstm)

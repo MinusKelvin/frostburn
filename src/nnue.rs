@@ -141,7 +141,7 @@ impl Nnue {
         #[cfg(feature = "check-inference")]
         assert_eq!(scalar::infer(&stm_acc.vector, &nstm_acc.vector), result);
 
-        (result + stm_acc.pst - nstm_acc.pst) / 256 / 64
+        (result + stm_acc.pst - nstm_acc.pst) / 256 / 127
     }
 }
 
