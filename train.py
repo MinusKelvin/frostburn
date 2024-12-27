@@ -26,20 +26,23 @@ class Model(torch.nn.Module):
         super().__init__()
         self.ft = torch.nn.Linear(768, 512)
         self.l1 = torch.nn.Linear(1024, 1)
+        self.l1_contempt = torch.nn.Linear(1024, 1)
 
     def clip(self):
         self.l1.weight.data = self.l1.weight.data.clamp(-127/64, 127/64)
+        self.l1_contempt.weight.data = self.l1_contempt.weight.data.clamp(-127/64, 127/64)
 
-    def forward(self, stm, nstm):
+    def forward(self, stm, nstm, contempt):
         stm = self.ft(stm)
         nstm = self.ft(nstm)
         x = torch.cat((stm, nstm), dim=1)
 
         x = torch.clamp(x, 0, 1)
         x = x * x
+        c = self.l1_contempt(x)
         x = self.l1(x)
 
-        return torch.sigmoid(x)
+        return torch.sigmoid(x + contempt * c)
 
 
 if compiling.wait() != 0:
@@ -51,7 +54,7 @@ data_loader.create.restype = ctypes.c_void_p
 data_loader.destroy.argtypes = [ctypes.c_void_p]
 data_loader.next_batch.restype = ctypes.c_int64
 data_loader.next_batch.argtypes = \
-    [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
+    [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
 gpu = torch.device("cuda")
 batch_size = data_loader.batch_size()
 
@@ -61,6 +64,7 @@ def batch_stream():
     nstm_idx = torch.zeros(batch_size * 32, 2, dtype=torch.long)
     one = torch.ones(batch_size * 32, dtype=torch.float)
     targets = torch.zeros(batch_size, 1, dtype=torch.float)
+    contempt = torch.zeros(batch_size, 1, dtype=torch.float)
     try:
         while True:
             nidx = data_loader.next_batch(
@@ -68,6 +72,7 @@ def batch_stream():
                 stm_idx.data_ptr(),
                 nstm_idx.data_ptr(),
                 targets.data_ptr(),
+                contempt.data_ptr(),
             )
 
             stm = torch.sparse_coo_tensor(stm_idx[:nidx, :].t(), one[:nidx], (batch_size, 768))
@@ -75,7 +80,7 @@ def batch_stream():
             nstm = torch.sparse_coo_tensor(nstm_idx[:nidx, :].t(), one[:nidx], (batch_size, 768))
             nstm = nstm.to(gpu).to_dense()
 
-            yield stm, nstm, targets.to(gpu)
+            yield stm, nstm, targets.to(gpu), contempt.to(gpu)
     finally:
         data_loader.destroy(loader)
 

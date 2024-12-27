@@ -2,6 +2,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use arrayvec::ArrayVec;
+use bytemuck::Zeroable;
 use cozy_chess::{BitBoard, Board, Color, File, Piece, Square};
 
 #[cfg(target_arch = "x86_64")]
@@ -34,6 +35,7 @@ pub struct Nnue {
     white_right: Accumulator,
     black_left: Accumulator,
     black_right: Accumulator,
+    l1: L1,
 }
 
 #[derive(Clone)]
@@ -50,15 +52,19 @@ struct FeatureTransformer<const IN: usize, const OUT: usize> {
 }
 
 #[repr(C)]
-struct Linear<const IN: usize, const OUT: usize> {
-    w: [[i16; IN]; OUT],
-    bias: [i32; OUT],
+#[derive(Zeroable)]
+struct Linear<const IN: usize, const OUT: usize, W, B> {
+    w: [[W; IN]; OUT],
+    bias: [B; OUT],
 }
+
+type L1 = Linear<{ 2 * HL_SIZE }, 1, i16, i32>;
 
 #[repr(C)]
 struct Network {
     ft: FeatureTransformer<768, HL_SIZE>,
-    l1: Linear<{ 2 * HL_SIZE }, 1>,
+    l1: Linear<{ 2 * HL_SIZE }, 1, f32, f32>,
+    l1_contempt: Linear<{ 2 * HL_SIZE }, 1, f32, f32>,
 }
 
 #[derive(Default)]
@@ -101,12 +107,26 @@ impl Default for NnueBackend {
 }
 
 impl Nnue {
-    pub fn new() -> Self {
+    pub fn new(contempt: i32) -> Self {
+        let factor = contempt as f32 / 50.0;
+        let mut l1 = L1::zeroed();
+        l1.bias[0] = ((NETWORK.l1.bias[0] + factor * NETWORK.l1_contempt.bias[0])
+            * (256 * 256 * 64) as f32)
+            .round() as i32;
+        for i in 0..1024 {
+            let w = ((NETWORK.l1.w[0][i] + factor * NETWORK.l1_contempt.w[0][i]) * 64.0).round();
+            assert!(
+                w.abs() <= 127.0,
+                "L1 weight {i} = {w} exceeds +-127 for contempt {contempt}"
+            );
+            l1.w[0][i] = w as i16;
+        }
         Nnue {
             white_left: Accumulator::new(0),
             white_right: Accumulator::new(MIRROR_FLIP),
             black_left: Accumulator::new(BLACK_FLIP),
             black_right: Accumulator::new(BLACK_FLIP | MIRROR_FLIP),
+            l1,
         }
     }
 
@@ -130,14 +150,19 @@ impl Nnue {
 
         let result = match backend.0 {
             #[cfg(target_arch = "x86_64")]
-            Backend::Avx2 => unsafe { avx2::infer(&stm_acc.vector, &nstm_acc.vector) },
+            Backend::Avx2 => unsafe { avx2::infer(&self.l1, &stm_acc.vector, &nstm_acc.vector) },
             #[cfg(all(target_arch = "x86_64", feature = "nightly-avx512"))]
-            Backend::Avx512 => unsafe { avx512::infer(&stm_acc.vector, &nstm_acc.vector) },
-            Backend::Scalar => scalar::infer(&stm_acc.vector, &nstm_acc.vector),
+            Backend::Avx512 => unsafe {
+                avx512::infer(&self.l1, &stm_acc.vector, &nstm_acc.vector)
+            },
+            Backend::Scalar => scalar::infer(&self.l1, &stm_acc.vector, &nstm_acc.vector),
         };
 
         #[cfg(feature = "check-inference")]
-        assert_eq!(scalar::infer(&stm_acc.vector, &nstm_acc.vector), result);
+        assert_eq!(
+            scalar::infer(&self.l1, &stm_acc.vector, &nstm_acc.vector),
+            result
+        );
 
         result
     }

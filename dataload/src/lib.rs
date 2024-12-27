@@ -34,6 +34,7 @@ struct Batch {
     stm: Vec<[i64; 2]>,
     nstm: Vec<[i64; 2]>,
     targets: Vec<f32>,
+    contempt: Vec<f32>,
 }
 
 #[no_mangle]
@@ -67,7 +68,7 @@ pub unsafe extern "C" fn create() -> *mut Loader {
                 .recv()
                 .unwrap();
 
-            for ((board, winner), batch) in datas.into_iter().zip(&mut batches) {
+            for ((board, winner, contempt), batch) in datas.into_iter().zip(&mut batches) {
                 for sq in board.occupied() {
                     let color = board.color_on(sq).unwrap();
                     let piece = board.piece_on(sq).unwrap();
@@ -95,6 +96,7 @@ pub unsafe extern "C" fn create() -> *mut Loader {
                     Some(_) => 0.0,
                     None => 0.5,
                 });
+                batch.contempt.push(contempt);
             }
         }
 
@@ -133,6 +135,7 @@ pub unsafe extern "C" fn next_batch(
     stm: &mut [[i64; 2]; BATCH_SIZE * 32],
     nstm: &mut [[i64; 2]; BATCH_SIZE * 32],
     targets: &mut [f32; BATCH_SIZE],
+    contempt: &mut [f32; BATCH_SIZE],
 ) -> u64 {
     loader.batches += 1;
     // let t = std::time::Instant::now();
@@ -148,6 +151,7 @@ pub unsafe extern "C" fn next_batch(
     assert_eq!(batch.targets.len(), BATCH_SIZE);
 
     targets.copy_from_slice(&batch.targets);
+    contempt.copy_from_slice(&batch.contempt);
     stm[..batch.stm.len()].copy_from_slice(&batch.stm);
     nstm[..batch.nstm.len()].copy_from_slice(&batch.nstm);
 
@@ -163,9 +167,9 @@ pub unsafe extern "C" fn destroy(loader: *mut Loader) {
     }
 }
 
-fn data_stream(file: &Path) -> impl Iterator<Item = (Board, Option<Color>)> {
+fn data_stream(file: &Path) -> impl Iterator<Item = (Board, Option<Color>, f32)> {
     GameStream::new(file)
-        .flat_map(|game| {
+        .flat_map(|(game, contempt)| {
             let mut board = Board::double_chess960_startpos(
                 game.white_scharnagl as u32,
                 game.black_scharnagl as u32,
@@ -178,34 +182,42 @@ fn data_stream(file: &Path) -> impl Iterator<Item = (Board, Option<Color>)> {
                 .into_iter()
                 .scan(board, move |board, mv| {
                     let pos = board.clone();
+                    let contempt = match pos.side_to_move() {
+                        Color::White => contempt,
+                        Color::Black => -contempt,
+                    };
                     board.play(mv);
-                    Some((pos, mv, game.winner))
+                    Some((pos, mv, game.winner, contempt))
                 })
                 .skip(game.fake_moves as usize)
         })
-        .filter(|&(ref board, mv, winner)| filter(board, mv, winner))
-        .map(|(board, _, winner)| (board, winner))
+        .filter(|&(ref board, mv, winner, _)| filter(board, mv, winner))
+        .map(|(board, _, winner, contempt)| (board, winner, contempt))
 }
 
 struct GameStream {
     from: DataReader,
+    contempt: f32,
 }
 
 impl GameStream {
     fn new(path: &Path) -> Self {
+        let from = DataReader::new(File::open(path).unwrap()).unwrap();
+        let (elo, _) = from.header().elo().unwrap();
         GameStream {
-            from: DataReader::new(File::open(path).unwrap()).unwrap(),
+            contempt: elo.round() as f32 / 50.0,
+            from,
         }
     }
 }
 
 impl Iterator for GameStream {
-    type Item = Game;
+    type Item = (Game, f32);
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match self.from.read_game().unwrap() {
-                Some(v) => return Some(v),
+                Some(v) => return Some((v, self.contempt)),
                 None => self.from.reset().unwrap(),
             }
         }
@@ -218,6 +230,7 @@ impl Default for Batch {
             stm: Vec::with_capacity(BATCH_SIZE * 32),
             nstm: Vec::with_capacity(BATCH_SIZE * 32),
             targets: Vec::with_capacity(BATCH_SIZE),
+            contempt: Vec::with_capacity(BATCH_SIZE),
         }
     }
 }

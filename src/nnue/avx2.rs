@@ -1,6 +1,6 @@
 use core::arch::x86_64::*;
 
-use super::{Updates, HL_SIZE, NETWORK};
+use super::{Updates, HL_SIZE, L1, NETWORK};
 
 const NEURONS_PER_VECTOR: usize = 256 / 16;
 const VECTORS_PER_BLOCK: usize = 16;
@@ -28,8 +28,8 @@ pub(super) unsafe fn update(acc: &mut [i16; HL_SIZE], updates: &Updates) {
 }
 
 #[target_feature(enable = "avx2")]
-pub(super) unsafe fn infer(stm: &[i16; HL_SIZE], nstm: &[i16; HL_SIZE]) -> i32 {
-    let (first, last) = NETWORK.l1.w[0].split_at(HL_SIZE);
+pub(super) unsafe fn infer(l1: &L1, stm: &[i16; HL_SIZE], nstm: &[i16; HL_SIZE]) -> i32 {
+    let (first, last) = l1.w[0].split_at(HL_SIZE);
     let first = <&[_; HL_SIZE]>::try_from(first).unwrap();
     let last = <&[_; HL_SIZE]>::try_from(last).unwrap();
 
@@ -48,7 +48,7 @@ pub(super) unsafe fn infer(stm: &[i16; HL_SIZE], nstm: &[i16; HL_SIZE]) -> i32 {
     result = _mm_add_epi32(result, _mm_shuffle_epi32::<0b10_11_00_01>(result));
     // result = A+B+C+D A+B+C+D A+B+C+D A+B+C+D
 
-    (NETWORK.l1.bias[0] + _mm_extract_epi32::<0>(result)) / 256 / 64
+    (l1.bias[0] + _mm_extract_epi32::<0>(result)) / 256 / 64
 }
 
 #[target_feature(enable = "avx2")]

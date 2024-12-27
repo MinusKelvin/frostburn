@@ -167,7 +167,7 @@ impl LocalData {
             on_first_depth: false,
             local_nodes: 0,
             local_seldepth: 0,
-            nnue: Nnue::new(),
+            nnue: Nnue::new(0),
             history: ButterflyHistory::new(),
             counter_hist: ContinuationHistory::new(),
             followup_hist: ContinuationHistory::new(),

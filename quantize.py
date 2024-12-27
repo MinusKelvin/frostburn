@@ -10,6 +10,7 @@ class Emit:
         self.buffer = bytearray()
         self.i16_format = struct.Struct("<h")
         self.i32_format = struct.Struct("<i")
+        self.f32_format = struct.Struct("<f")
 
     def put_i16(self, v, factor):
         v = round(v * factor)
@@ -35,6 +36,13 @@ class Emit:
         for x in v:
             self.put_many_i32(x, factor)
 
+    def put_many_f32(self, v):
+        if type(v) != list:
+            self.buffer.extend(self.f32_format.pack(v))
+        else:
+            for x in v:
+                self.put_many_f32(x)
+
 def transpose(m):
     return [[m[i][j] for i in range(len(m))] for j in range(len(m[0]))]
 
@@ -46,8 +54,10 @@ emit = Emit()
 emit.put_many_i16(transpose(model["ft.weight"]), FT_UNIT)
 emit.put_many_i16(model["ft.bias"], FT_UNIT)
 
-emit.put_many_i16(transpose(model["l1.weight"]), L1_UNIT)
-emit.put_many_i32(model["l1.bias"], FT_UNIT * FT_UNIT * L1_UNIT)
+emit.put_many_f32(transpose(model["l1.weight"]))
+emit.put_many_f32(model["l1.bias"])
+emit.put_many_f32(transpose(model["l1_contempt.weight"]))
+emit.put_many_f32(model["l1_contempt.bias"])
 
 with open(sys.argv[2], "wb") as f:
     f.write(emit.buffer)

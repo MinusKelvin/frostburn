@@ -308,7 +308,7 @@ impl UciHandler {
     }
 
     fn eval(&mut self, _: &mut TokenIter) {
-        let mut acc = Nnue::new();
+        let mut acc = Nnue::new(0);
         let backend = self.shared_data.read().unwrap().1.nnue_backend;
         let guard = self.shared_data.read().unwrap();
         let config = &guard.0;

@@ -15,7 +15,7 @@ nightly-avx512 = []
 
 [dependencies]
 arrayvec = "0.7.4"
-bytemuck = { version = "1.16.0", features = ["derive", "zeroable_atomics", "extern_crate_alloc"] }
+bytemuck = { version = "1.16.0", features = ["derive", "zeroable_atomics", "extern_crate_alloc", "min_const_generics"] }
 cozy-chess = "0.3.4"
 cpufeatures = "0.2.16"
 
