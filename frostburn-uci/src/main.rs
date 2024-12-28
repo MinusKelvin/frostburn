@@ -230,9 +230,6 @@ impl UciHandler {
             "Contempt" => {
                 let value = tokens.nth(1).unwrap().parse().unwrap();
                 config.contempt = value;
-                for (send, _) in &self.threads {
-                    send.send(Command::ResetData).unwrap();
-                }
             }
             #[cfg(feature = "tunable")]
             param => {
