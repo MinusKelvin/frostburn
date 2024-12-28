@@ -13,6 +13,7 @@ impl Search<'_> {
 
         self.data.on_first_depth = true;
         self.data.local_seldepth = 0;
+        self.data.nnue.us = self.root.side_to_move();
 
         // simplify history so we can detect 2-fold
         let start =

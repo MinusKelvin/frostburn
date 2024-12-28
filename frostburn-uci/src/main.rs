@@ -102,6 +102,7 @@ struct SearchConfig {
     mv_format: MoveFormat,
     limits: Limits,
     pretty: bool,
+    contempt: i32,
 
     start: Instant,
 }
@@ -131,6 +132,7 @@ impl UciHandler {
                     mv_format: MoveFormat::Standard,
                     pretty: true,
                     limits: Limits::default(),
+                    contempt: 0,
                 },
                 SharedData::new(64),
             ))),
@@ -150,6 +152,7 @@ impl UciHandler {
         println!("option name Hash type spin min 1 max 1048576 default 64");
         println!("option name Threads type spin min 1 max 1024 default 1");
         println!("option name Weaken_Eval type spin min 0 max 10000 default 0");
+        println!("option name Contempt type spin min -100 max 100 default 0");
 
         print!(
             "option name NNUE_Backend type combo default {}",
@@ -222,6 +225,13 @@ impl UciHandler {
                         shared.nnue_backend = backend;
                         break;
                     }
+                }
+            }
+            "Contempt" => {
+                let value = tokens.nth(1).unwrap().parse().unwrap();
+                config.contempt = value;
+                for (send, _) in &self.threads {
+                    send.send(Command::ResetData).unwrap();
                 }
             }
             #[cfg(feature = "tunable")]
@@ -459,7 +469,7 @@ fn search_thread(
     command: Receiver<Command>,
     id: usize,
 ) {
-    let mut local_data = LocalData::new();
+    let mut local_data = LocalData::new(shared_data.read().unwrap().0.contempt);
     loop {
         match command.recv().unwrap_or(Command::Exit) {
             Command::Exit => return,
@@ -468,7 +478,7 @@ fn search_thread(
                 continue;
             }
             Command::ResetData => {
-                local_data = LocalData::new();
+                local_data = LocalData::new(shared_data.read().unwrap().0.contempt);
                 continue;
             }
             Command::Rendezvous => continue,

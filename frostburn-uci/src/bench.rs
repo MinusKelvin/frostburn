@@ -7,7 +7,7 @@ pub fn bench() {
     for block in shared.get_clear_tt_blocks(1) {
         shared.clear_tt_block(block);
     }
-    let mut local = LocalData::new();
+    let mut local = LocalData::new(0);
 
     let mut search_time = Duration::ZERO;
     let mut total_nodes = 0;

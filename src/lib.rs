@@ -161,13 +161,13 @@ impl Search<'_> {
 }
 
 impl LocalData {
-    pub fn new() -> Self {
+    pub fn new(contempt: i32) -> Self {
         Self {
             pv_table: [(); MAX_PLY + 1].map(|_| ArrayVec::new()),
             on_first_depth: false,
             local_nodes: 0,
             local_seldepth: 0,
-            nnue: Nnue::new(0),
+            nnue: Nnue::new(contempt),
             history: ButterflyHistory::new(),
             counter_hist: ContinuationHistory::new(),
             followup_hist: ContinuationHistory::new(),

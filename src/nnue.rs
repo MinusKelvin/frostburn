@@ -36,11 +36,14 @@ enum Backend {
 }
 
 pub struct Nnue {
+    pub us: Color,
+
     white_left: Accumulator,
     white_right: Accumulator,
     black_left: Accumulator,
     black_right: Accumulator,
-    l1: L1,
+    l1_us: L1,
+    l1_them: L1,
 }
 
 #[derive(Clone)]
@@ -57,7 +60,7 @@ struct FeatureTransformer<const IN: usize, const OUT: usize> {
 }
 
 #[repr(C)]
-#[derive(Zeroable)]
+#[derive(Clone, Zeroable)]
 struct Linear<const IN: usize, const OUT: usize, W, B> {
     w: [[W; IN]; OUT],
     bias: [B; OUT],
@@ -114,21 +117,28 @@ impl Default for NnueBackend {
 impl Nnue {
     pub fn new(contempt: i32) -> Self {
         let factor = contempt as f32 / 50.0;
-        let mut l1 = L1::zeroed();
+        let mut l1_us = L1::zeroed();
+        let mut l1_them = L1::zeroed();
 
         let w = NETWORK.l1.bias[0] + factor * NETWORK.l1_contempt.bias[0];
-        l1.bias[0] = (w * OUTPUT_QUANT as f32).round() as i32;
+        l1_us.bias[0] = (w * OUTPUT_QUANT as f32).round() as i32;
+        let w = NETWORK.l1.bias[0] - factor * NETWORK.l1_contempt.bias[0];
+        l1_them.bias[0] = (w * OUTPUT_QUANT as f32).round() as i32;
 
         for i in 0..1024 {
             let w = NETWORK.l1.w[0][i] + factor * NETWORK.l1_contempt.w[0][i];
-            l1.w[0][i] = (w * L1_QUANT as f32).round() as i16;
+            l1_us.w[0][i] = (w * L1_QUANT as f32).round() as i16;
+            let w = NETWORK.l1.w[0][i] - factor * NETWORK.l1_contempt.w[0][i];
+            l1_them.w[0][i] = (w * L1_QUANT as f32).round() as i16;
         }
         Nnue {
+            us: Color::White,
             white_left: Accumulator::new(0),
             white_right: Accumulator::new(MIRROR_FLIP),
             black_left: Accumulator::new(BLACK_FLIP),
             black_right: Accumulator::new(BLACK_FLIP | MIRROR_FLIP),
-            l1,
+            l1_us,
+            l1_them,
         }
     }
 
@@ -139,11 +149,13 @@ impl Nnue {
             l1.w[0][i] = (NETWORK.l1_contempt.w[0][i] * L1_QUANT as f32).round() as i16;
         }
         Nnue {
+            us: Color::White,
             white_left: Accumulator::new(0),
             white_right: Accumulator::new(MIRROR_FLIP),
             black_left: Accumulator::new(BLACK_FLIP),
             black_right: Accumulator::new(BLACK_FLIP | MIRROR_FLIP),
-            l1,
+            l1_us: l1.clone(),
+            l1_them: l1,
         }
     }
 
@@ -165,19 +177,24 @@ impl Nnue {
             Color::Black => (black_acc, white_acc),
         };
 
+        let l1 = match board.side_to_move() == self.us {
+            true => &self.l1_us,
+            false => &self.l1_them,
+        };
+
         let result = match backend.0 {
             #[cfg(target_arch = "x86_64")]
-            Backend::Avx2 => unsafe { avx2::infer(&self.l1, &stm_acc.vector, &nstm_acc.vector) },
+            Backend::Avx2 => unsafe { avx2::infer(l1, &stm_acc.vector, &nstm_acc.vector) },
             #[cfg(all(target_arch = "x86_64", feature = "nightly-avx512"))]
             Backend::Avx512 => unsafe {
-                avx512::infer(&self.l1, &stm_acc.vector, &nstm_acc.vector)
+                avx512::infer(l1, &stm_acc.vector, &nstm_acc.vector)
             },
-            Backend::Scalar => scalar::infer(&self.l1, &stm_acc.vector, &nstm_acc.vector),
+            Backend::Scalar => scalar::infer(l1, &stm_acc.vector, &nstm_acc.vector),
         };
 
         #[cfg(feature = "check-inference")]
         assert_eq!(
-            scalar::infer(&self.l1, &stm_acc.vector, &nstm_acc.vector),
+            scalar::infer(l1, &stm_acc.vector, &nstm_acc.vector),
             result
         );
 

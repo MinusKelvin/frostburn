@@ -22,7 +22,7 @@ pub fn reproduce(side: Color, mb: usize) {
     }
 
     let mut shared = SharedData::new(mb);
-    let mut local = LocalData::new();
+    let mut local = LocalData::new(0);
     let mut history = vec![];
 
     let mut text = String::new();
