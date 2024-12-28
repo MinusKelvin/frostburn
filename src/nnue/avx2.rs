@@ -1,6 +1,6 @@
 use core::arch::x86_64::*;
 
-use super::{Updates, HL_SIZE, L1, NETWORK};
+use super::{Updates, FT_QUANT, HL_SIZE, L1, NETWORK};
 
 const NEURONS_PER_VECTOR: usize = 256 / 16;
 const VECTORS_PER_BLOCK: usize = 16;
@@ -48,7 +48,7 @@ pub(super) unsafe fn infer(l1: &L1, stm: &[i16; HL_SIZE], nstm: &[i16; HL_SIZE])
     result = _mm_add_epi32(result, _mm_shuffle_epi32::<0b10_11_00_01>(result));
     // result = A+B+C+D A+B+C+D A+B+C+D A+B+C+D
 
-    (l1.bias[0] + _mm_extract_epi32::<0>(result)) / 256 / 64
+    l1.bias[0] + _mm_extract_epi32::<0>(result)
 }
 
 #[target_feature(enable = "avx2")]
@@ -85,17 +85,20 @@ unsafe fn fused_activate_dot(a: &[i16; HL_SIZE], w: &[i16; HL_SIZE]) -> __m256i 
     let mut result = _mm256_setzero_si256();
 
     let zero = _mm256_setzero_si256();
-    let one = _mm256_set1_epi16(256);
+    let one = _mm256_set1_epi16(FT_QUANT);
 
     for i in 0..HL_VECTORS {
         let a = _mm256_loadu_si256(a.add(i));
         let a = _mm256_max_epi16(a, zero);
         let a = _mm256_min_epi16(a, one);
 
+        // a: 0..=362
+        let a = _mm256_slli_epi16::<7>(a);
+        // a: 0..=46336
+        let aa = _mm256_mulhi_epu16(a, a);
+        // aa: 0..=32761
         let w = _mm256_loadu_si256(w.add(i));
-        // a: 0..=256, w: -127..=127, therefore a*w fits in i16
-        let aw = _mm256_mullo_epi16(a, w);
-        let v = _mm256_madd_epi16(a, aw);
+        let v = _mm256_madd_epi16(aa, w);
 
         result = _mm256_add_epi32(result, v);
     }

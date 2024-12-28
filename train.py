@@ -96,9 +96,9 @@ train_id = strftime("%Y-%m-%d-%H-%M-%S")
 
 train_loss = []
 
-for i, (stm, nstm, targets) in enumerate(batch_stream()):
+for i, (stm, nstm, targets, contempt) in enumerate(batch_stream()):
     opt.zero_grad()
-    prediction = model(stm, nstm)
+    prediction = model(stm, nstm, contempt)
     loss = torch.mean(torch.abs(prediction - targets) ** 2)
     loss.backward()
     opt.step()

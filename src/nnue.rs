@@ -17,6 +17,11 @@ const HL_SIZE: usize = 512;
 const BLACK_FLIP: usize = 0b1_111_000;
 const MIRROR_FLIP: usize = 0b0_000_111;
 
+const FT_QUANT: i16 = 362;
+const L1_QUANT: i16 = 128;
+const HL_QUANT: i32 = FT_QUANT as i32 * FT_QUANT as i32 >> 2;
+const OUTPUT_QUANT: i32 = HL_QUANT * L1_QUANT as i32;
+
 // Note: This type has the safety invariant that the contained `Backend` is safe to use.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NnueBackend(Backend);
@@ -110,16 +115,28 @@ impl Nnue {
     pub fn new(contempt: i32) -> Self {
         let factor = contempt as f32 / 50.0;
         let mut l1 = L1::zeroed();
-        l1.bias[0] = ((NETWORK.l1.bias[0] + factor * NETWORK.l1_contempt.bias[0])
-            * (256 * 256 * 64) as f32)
-            .round() as i32;
+
+        let w = NETWORK.l1.bias[0] + factor * NETWORK.l1_contempt.bias[0];
+        l1.bias[0] = (w * OUTPUT_QUANT as f32).round() as i32;
+
         for i in 0..1024 {
-            let w = ((NETWORK.l1.w[0][i] + factor * NETWORK.l1_contempt.w[0][i]) * 64.0).round();
-            assert!(
-                w.abs() <= 127.0,
-                "L1 weight {i} = {w} exceeds +-127 for contempt {contempt}"
-            );
-            l1.w[0][i] = w as i16;
+            let w = NETWORK.l1.w[0][i] + factor * NETWORK.l1_contempt.w[0][i];
+            l1.w[0][i] = (w * L1_QUANT as f32).round() as i16;
+        }
+        Nnue {
+            white_left: Accumulator::new(0),
+            white_right: Accumulator::new(MIRROR_FLIP),
+            black_left: Accumulator::new(BLACK_FLIP),
+            black_right: Accumulator::new(BLACK_FLIP | MIRROR_FLIP),
+            l1,
+        }
+    }
+
+    pub fn contempt_only() -> Self {
+        let mut l1 = L1::zeroed();
+        l1.bias[0] = (NETWORK.l1_contempt.bias[0] * OUTPUT_QUANT as f32).round() as i32;
+        for i in 0..1024 {
+            l1.w[0][i] = (NETWORK.l1_contempt.w[0][i] * L1_QUANT as f32).round() as i16;
         }
         Nnue {
             white_left: Accumulator::new(0),
@@ -164,7 +181,7 @@ impl Nnue {
             result
         );
 
-        result
+        result / (OUTPUT_QUANT / 256)
     }
 }
 

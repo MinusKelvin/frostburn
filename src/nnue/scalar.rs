@@ -1,4 +1,4 @@
-use super::{Updates, HL_SIZE, L1, NETWORK};
+use super::{Updates, FT_QUANT, HL_SIZE, L1, NETWORK};
 
 pub(super) fn update(acc: &mut [i16; HL_SIZE], updates: &Updates) {
     for &add in &updates.adds {
@@ -27,16 +27,16 @@ pub(super) fn infer(l1: &L1, stm: &[i16; HL_SIZE], nstm: &[i16; HL_SIZE]) -> i32
     let mut result = l1.bias[0];
 
     for i in 0..activated.len() {
-        result += activated[i] as i32 * activated[i] as i32 * l1.w[0][i] as i32;
+        result += (activated[i] as i32 * activated[i] as i32 >> 2) * l1.w[0][i] as i32;
     }
 
-    result / 256 / 64
+    result
 }
 
 fn crelu<const N: usize>(a: &[i16; N]) -> [i16; N] {
     let mut result = [0; N];
     for i in 0..N {
-        result[i] = a[i].clamp(0, 256);
+        result[i] = a[i].clamp(0, FT_QUANT);
     }
     result
 }

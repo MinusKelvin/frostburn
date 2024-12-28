@@ -46,8 +46,7 @@ class Emit:
 def transpose(m):
     return [[m[i][j] for i in range(len(m))] for j in range(len(m[0]))]
 
-FT_UNIT = 256
-L1_UNIT = 64
+FT_UNIT = 362
 
 emit = Emit()
 

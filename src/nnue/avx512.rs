@@ -1,6 +1,6 @@
 use core::arch::x86_64::*;
 
-use super::{Updates, HL_SIZE, L1, NETWORK};
+use super::{Updates, FT_QUANT, HL_SIZE, L1, NETWORK};
 
 const NEURONS_PER_VECTOR: usize = 512 / 16;
 const VECTORS_PER_BLOCK: usize = 16;
@@ -40,7 +40,7 @@ pub(super) unsafe fn infer(l1: &L1, stm: &[i16; HL_SIZE], nstm: &[i16; HL_SIZE])
 
     let result = _mm512_reduce_add_epi32(result);
 
-    (l1.bias[0] + result) / 256 / 64
+    l1.bias[0] + result
 }
 
 #[target_feature(enable = "avx512f,avx512bw")]
@@ -77,17 +77,20 @@ unsafe fn fused_activate_dot(a: &[i16; HL_SIZE], w: &[i16; HL_SIZE]) -> __m512i 
     let mut result = _mm512_setzero_si512();
 
     let zero = _mm512_setzero_si512();
-    let one = _mm512_set1_epi16(256);
+    let one = _mm512_set1_epi16(FT_QUANT);
 
     for i in 0..HL_VECTORS {
         let a = _mm512_loadu_si512(a.add(i).cast());
         let a = _mm512_max_epi16(a, zero);
         let a = _mm512_min_epi16(a, one);
 
+        // a: 0..=362
+        let a = _mm512_slli_epi16::<7>(a);
+        // a: 0..=46336
+        let aa = _mm512_mulhi_epu16(a, a);
+        // aa: 0..=32761
         let w = _mm512_loadu_si512(w.add(i).cast());
-        // a: 0..=256, w: -127..=127, therefore a*w fits in i16
-        let aw = _mm512_mullo_epi16(a, w);
-        let v = _mm512_madd_epi16(a, aw);
+        let v = _mm512_madd_epi16(aa, w);
 
         result = _mm512_add_epi32(result, v);
     }

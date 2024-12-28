@@ -307,8 +307,12 @@ impl UciHandler {
         }
     }
 
-    fn eval(&mut self, _: &mut TokenIter) {
-        let mut acc = Nnue::new(0);
+    fn eval(&mut self, tokens: &mut TokenIter) {
+        let mut acc = match tokens.next() {
+            Some("contempt") => Nnue::contempt_only(),
+            Some(v) => Nnue::new(v.parse().unwrap()),
+            None => Nnue::new(0),
+        };
         let backend = self.shared_data.read().unwrap().1.nnue_backend;
         let guard = self.shared_data.read().unwrap();
         let config = &guard.0;
