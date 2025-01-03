@@ -466,7 +466,7 @@ fn search_thread(
     command: Receiver<Command>,
     id: usize,
 ) {
-    let mut local_data = LocalData::new(shared_data.read().unwrap().0.contempt);
+    let mut local_data = LocalData::new(0);
     loop {
         match command.recv().unwrap_or(Command::Exit) {
             Command::Exit => return,
