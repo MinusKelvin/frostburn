@@ -1,5 +1,4 @@
 #![no_std]
-#![cfg_attr(feature = "nightly-avx512", feature(avx512_target_feature, stdarch_x86_avx512))]
 extern crate alloc;
 
 use alloc::vec;

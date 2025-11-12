@@ -6,7 +6,7 @@ use cozy_chess::{BitBoard, Board, Color, File, Piece, Square};
 
 #[cfg(target_arch = "x86_64")]
 mod avx2;
-#[cfg(all(target_arch = "x86_64", feature = "nightly-avx512"))]
+#[cfg(all(target_arch = "x86_64"))]
 mod avx512;
 
 mod scalar;
@@ -25,7 +25,7 @@ enum Backend {
     Scalar,
     #[cfg(target_arch = "x86_64")]
     Avx2,
-    #[cfg(all(target_arch = "x86_64", feature = "nightly-avx512"))]
+    #[cfg(all(target_arch = "x86_64"))]
     Avx512,
 }
 
@@ -75,7 +75,7 @@ impl NnueBackend {
         if avx2::available() {
             backends.push(NnueBackend(Backend::Avx2));
         }
-        #[cfg(all(target_arch = "x86_64", feature = "nightly-avx512"))]
+        #[cfg(all(target_arch = "x86_64"))]
         if avx512::available() {
             backends.push(NnueBackend(Backend::Avx512));
         }
@@ -88,7 +88,7 @@ impl NnueBackend {
             Backend::Scalar => "scalar",
             #[cfg(target_arch = "x86_64")]
             Backend::Avx2 => "avx2",
-            #[cfg(all(target_arch = "x86_64", feature = "nightly-avx512"))]
+            #[cfg(all(target_arch = "x86_64"))]
             Backend::Avx512 => "avx512",
         }
     }
@@ -131,7 +131,7 @@ impl Nnue {
         let result = match backend.0 {
             #[cfg(target_arch = "x86_64")]
             Backend::Avx2 => unsafe { avx2::infer(&stm_acc.vector, &nstm_acc.vector) },
-            #[cfg(all(target_arch = "x86_64", feature = "nightly-avx512"))]
+            #[cfg(all(target_arch = "x86_64"))]
             Backend::Avx512 => unsafe { avx512::infer(&stm_acc.vector, &nstm_acc.vector) },
             Backend::Scalar => scalar::infer(&stm_acc.vector, &nstm_acc.vector),
         };
@@ -186,7 +186,7 @@ impl Accumulator {
         match backend {
             #[cfg(target_arch = "x86_64")]
             Backend::Avx2 => unsafe { avx2::update(&mut self.vector, &updates) },
-            #[cfg(all(target_arch = "x86_64", feature = "nightly-avx512"))]
+            #[cfg(all(target_arch = "x86_64"))]
             Backend::Avx512 => unsafe { avx512::update(&mut self.vector, &updates) },
             Backend::Scalar => scalar::update(&mut self.vector, &updates),
         };
